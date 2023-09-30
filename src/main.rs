@@ -1,20 +1,22 @@
-use voronator::{delaunator::Point, VoronoiDiagram};
+use graph::graph::{Corner, Graph};
 pub mod graph;
+pub mod terrain;
 use nannou::prelude::*;
+use terrain::terrain::run_terrain_gen;
 
 use crate::graph::graph::generate_base_diagram;
 
-const X_SCALE: f64 = 800.0;
-const Y_SCALE: f64 = 500.0;
+pub const X_SCALE: f64 = 800.0;
+pub const Y_SCALE: f64 = 500.0;
 
-const I: usize = 500;
+const I: usize = 1000;
 
 fn main() {
     nannou::app(model).update(update).run();
 }
 
 struct Model {
-    diagram: VoronoiDiagram<Point>,
+    graph: Graph,
 }
 
 fn model(app: &App) -> Model {
@@ -24,9 +26,10 @@ fn model(app: &App) -> Model {
         .view(view)
         .build()
         .unwrap();
-    Model {
-        diagram: generate_base_diagram(I, X_SCALE, Y_SCALE),
-    }
+    let mut base_graph = generate_base_diagram(I, X_SCALE, Y_SCALE);
+    run_terrain_gen(&mut base_graph);
+    // println!("Edge Cells: {}", base_graph.cells.values().filter(|cell| cell.data.ocean))
+    Model { graph: base_graph }
 }
 
 fn update(_app: &App, _model: &mut Model, _update: Update) {}
@@ -34,21 +37,46 @@ fn update(_app: &App, _model: &mut Model, _update: Update) {}
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
     draw.background().color(WHITE);
-    for cell in model.diagram.cells() {
-        let mut prev: Option<&Point> = cell.points().last();
-        for point in cell.points() {
+    for cell in model.graph.cells.values() {
+        let points: Vec<&Corner> = cell
+            .corners
+            .iter()
+            .map(|id| model.graph.corners.get(id).unwrap())
+            .collect();
+        let p = points.clone();
+        let mut prev: Option<&&Corner> = p.last();
+        let poly_points = points.iter().map(|c| {
+            let mut colour = if cell.data.ocean {
+                DARKBLUE
+            } else if cell.data.water {
+                BLUE
+            } else {
+                WHITE
+            };
+            return (
+                (
+                    c.pos.0 - (X_SCALE as f32 / 2.0),
+                    c.pos.1 - (Y_SCALE as f32 / 2.0),
+                ),
+                colour,
+            );
+        });
+        draw.polygon().points_colored(poly_points).z(1.0);
+        // draw edges
+        for point in &points {
             if prev.is_some() {
                 draw.line()
                     .start(pt2(
-                        (prev.unwrap().x - (X_SCALE / 2.0)) as f32,
-                        (prev.unwrap().y - (Y_SCALE / 2.0)) as f32,
+                        prev.unwrap().pos.0 - (X_SCALE as f32 / 2.0),
+                        prev.unwrap().pos.1 - (Y_SCALE as f32 / 2.0),
                     ))
                     .end(pt2(
-                        (point.x - (X_SCALE / 2.0)) as f32,
-                        (point.y - (Y_SCALE / 2.0)) as f32,
+                        point.pos.0 - (X_SCALE as f32 / 2.0),
+                        point.pos.1 - (Y_SCALE as f32 / 2.0),
                     ))
                     .weight(1.0)
-                    .color(BLACK);
+                    .color(BLACK)
+                    .z(2.0);
             }
             prev = Some(&point);
         }

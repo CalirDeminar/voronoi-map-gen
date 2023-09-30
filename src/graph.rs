@@ -6,33 +6,43 @@ pub mod graph {
     use voronator::{delaunator, VoronoiDiagram};
 
     #[derive(Debug, Clone)]
+    pub struct WorldData {
+        pub water: bool,
+        pub ocean: bool,
+        pub coast: bool,
+        pub elevation: f32,
+    }
+
+    #[derive(Debug, Clone)]
     pub struct Cell {
-        id: Uuid,
-        neighbors: Vec<Uuid>,
-        edges: Vec<(Uuid, Uuid)>,
-        corners: Vec<Uuid>,
+        pub id: Uuid,
+        pub neighbors: Vec<Uuid>,
+        pub edges: Vec<(Uuid, Uuid)>,
+        pub corners: Vec<Uuid>,
+        pub data: WorldData,
     }
 
     #[derive(Debug, Clone)]
     pub struct Edge {
-        id: Uuid,
-        corners: (Uuid, Uuid),
-        cells: Vec<Uuid>,
+        pub id: Uuid,
+        pub corners: (Uuid, Uuid),
+        pub cells: Vec<Uuid>,
+        pub data: WorldData,
     }
 
     #[derive(Debug, Clone)]
     pub struct Corner {
-        id: Uuid,
-        pos: (f32, f32),
-        edges: Vec<Uuid>,
-        cells: Vec<Uuid>,
+        pub id: Uuid,
+        pub pos: (f32, f32),
+        pub edges: Vec<Uuid>,
+        pub cells: Vec<Uuid>,
     }
 
     #[derive(Debug, Clone)]
     pub struct Graph {
-        cells: HashMap<Uuid, Cell>,
-        edges: HashMap<(Uuid, Uuid), Edge>,
-        corners: HashMap<Uuid, Corner>,
+        pub cells: HashMap<Uuid, Cell>,
+        pub edges: HashMap<(Uuid, Uuid), Edge>,
+        pub corners: HashMap<Uuid, Corner>,
     }
 
     fn initialise(i: usize, x_scale: f64, y_scale: f64) -> Vec<(f64, f64)> {
@@ -80,11 +90,7 @@ pub mod graph {
         return base;
     }
 
-    pub fn generate_base_diagram(
-        i: usize,
-        x_scale: f64,
-        y_scale: f64,
-    ) -> VoronoiDiagram<delaunator::Point> {
+    pub fn generate_base_diagram(i: usize, x_scale: f64, y_scale: f64) -> Graph {
         let base = VoronoiDiagram::<delaunator::Point>::from_tuple(
             &(0.0, 0.0),
             &(x_scale, y_scale),
@@ -105,6 +111,12 @@ pub mod graph {
                 neighbors: Vec::new(),
                 edges: Vec::new(),
                 corners: Vec::new(),
+                data: WorldData {
+                    ocean: false,
+                    water: false,
+                    coast: false,
+                    elevation: 0.0,
+                },
             };
             // Corner Handling
             let points = cell.points();
@@ -167,6 +179,12 @@ pub mod graph {
                         id: Uuid::new_v4(),
                         corners: key.clone(),
                         cells: vec![cell_id.clone()],
+                        data: WorldData {
+                            ocean: false,
+                            water: false,
+                            coast: false,
+                            elevation: 0.0,
+                        },
                     };
                     graph_cell.edges.push(edge.corners.clone());
                     graph.edges.insert(
@@ -199,7 +217,6 @@ pub mod graph {
                 drop(cell_mut);
             }
         }
-        println!("{:#?}", graph.cells.iter().take(5));
-        return rtn;
+        return graph;
     }
 }
