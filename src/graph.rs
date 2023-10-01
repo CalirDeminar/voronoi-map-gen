@@ -35,8 +35,9 @@ pub mod graph {
     pub struct Corner {
         pub id: Uuid,
         pub pos: (f32, f32),
-        pub edges: Vec<Uuid>,
+        pub edges: Vec<(Uuid, Uuid)>,
         pub cells: Vec<Uuid>,
+        pub data: WorldData,
     }
 
     #[derive(Debug, Clone)]
@@ -139,6 +140,12 @@ pub mod graph {
                         cells: vec![cell_id.clone()],
                         edges: Vec::new(),
                         pos: pos,
+                        data: WorldData {
+                            ocean: false,
+                            water: false,
+                            coast: false,
+                            elevation: 0.0,
+                        },
                     };
                     cell_corner_ids.push(corner.id.clone());
                     graph_cell.corners.push(corner.id);
@@ -195,11 +202,11 @@ pub mod graph {
                     );
 
                     let corner_1 = graph.corners.get_mut(&key.0).unwrap();
-                    corner_1.edges.push(edge.id.clone());
+                    corner_1.edges.push(key.clone());
                     drop(corner_1);
 
                     let corner_2 = graph.corners.get_mut(&key.1).unwrap();
-                    corner_2.edges.push(edge.id.clone());
+                    corner_2.edges.push(key.clone());
                     drop(corner_2);
                 }
                 prev_point = Some(id);

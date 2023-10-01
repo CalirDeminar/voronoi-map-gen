@@ -1,13 +1,13 @@
 use graph::graph::{Corner, Graph};
 pub mod graph;
 pub mod terrain;
-use nannou::prelude::*;
+use nannou::{draw::background, prelude::*, text::font};
 use terrain::terrain::run_terrain_gen;
 
 use crate::graph::graph::generate_base_diagram;
 
-pub const X_SCALE: f64 = 800.0;
-pub const Y_SCALE: f64 = 500.0;
+pub const X_SCALE: f64 = 1600.0;
+pub const Y_SCALE: f64 = 800.0;
 
 const I: usize = 1000;
 
@@ -76,10 +76,20 @@ fn view(app: &App, model: &Model, frame: Frame) {
                         point.pos.0 - (X_SCALE as f32 / 2.0),
                         point.pos.1 - (Y_SCALE as f32 / 2.0),
                     ))
-                    .weight(1.0)
+                    .weight(if point.data.coast && prev.unwrap().data.coast {
+                        3.0
+                    } else {
+                        1.0
+                    })
                     .color(BLACK)
                     .z(2.0);
             }
+            draw.text(&format!("{}", point.data.elevation))
+                .glyph_colors([BLACK])
+                .font_size(12)
+                .x(point.pos.0 - (X_SCALE as f32 / 2.0))
+                .y(point.pos.1 - (Y_SCALE as f32 / 2.0))
+                .z(3.0);
             prev = Some(&point);
         }
     }
