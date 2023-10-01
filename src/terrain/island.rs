@@ -100,4 +100,23 @@ pub mod island {
         }
         return graph;
     }
+
+    pub fn mark_coastal_cells(graph: &mut Graph) -> &mut Graph {
+        let graph_cells_clone = graph.cells.clone();
+        for id in graph_cells_clone.keys() {
+            let mut cell = graph.cells.get_mut(id).unwrap();
+            if !cell.data.water
+                && !cell.data.ocean
+                && cell
+                    .neighbors
+                    .iter()
+                    .any(|n_id| graph_cells_clone.get(n_id).unwrap().data.ocean)
+            {
+                cell.data.coast = true;
+            }
+
+            drop(cell);
+        }
+        return graph;
+    }
 }

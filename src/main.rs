@@ -50,6 +50,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 DARKBLUE
             } else if cell.data.water {
                 BLUE
+            } else if cell.data.coast {
+                WHEAT
             } else {
                 WHITE
             };
