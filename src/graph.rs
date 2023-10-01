@@ -19,6 +19,7 @@ pub mod graph {
         pub neighbors: Vec<Uuid>,
         pub edges: Vec<(Uuid, Uuid)>,
         pub corners: Vec<Uuid>,
+        pub center: (f32, f32),
         pub data: WorldData,
     }
 
@@ -111,6 +112,7 @@ pub mod graph {
                 neighbors: Vec::new(),
                 edges: Vec::new(),
                 corners: Vec::new(),
+                center: (0.0, 0.0),
                 data: WorldData {
                     ocean: false,
                     water: false,
@@ -216,6 +218,22 @@ pub mod graph {
                 }
                 drop(cell_mut);
             }
+        }
+        let cells_clone = graph.cells.clone();
+        let cell_ids = cells_clone.keys();
+        // Cell centers
+        for id in cell_ids {
+            let cell = graph.cells.get_mut(&id).unwrap();
+            let center = cell.corners.iter().fold((0.0, 0.0), |acc, corner| {
+                let pos = graph.corners.get(corner).unwrap();
+                return (
+                    acc.0 + (pos.pos.0 / cell.corners.len() as f32),
+                    acc.1 + (pos.pos.1 / cell.corners.len() as f32),
+                );
+            });
+            cell.center = center;
+
+            drop(cell);
         }
         return graph;
     }
