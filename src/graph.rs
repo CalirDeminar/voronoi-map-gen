@@ -29,6 +29,7 @@ pub mod graph {
         pub corners: (Uuid, Uuid),
         pub cells: Vec<Uuid>,
         pub data: WorldData,
+        pub down_corner: Uuid,
     }
 
     #[derive(Debug, Clone)]
@@ -194,6 +195,7 @@ pub mod graph {
                             coast: false,
                             elevation: 0.0,
                         },
+                        down_corner: key.0.clone(),
                     };
                     graph_cell.edges.push(edge.corners.clone());
                     graph.edges.insert(

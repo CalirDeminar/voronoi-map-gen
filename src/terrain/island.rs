@@ -132,7 +132,6 @@ pub mod island {
 
     pub fn mark_coastal_cells(graph: &mut Graph) -> &mut Graph {
         let graph_cells_clone = graph.cells.clone();
-        let graph_corners_clone = graph.corners.clone();
         for id in graph_cells_clone.keys() {
             let mut cell = graph.cells.get_mut(id).unwrap();
             if !cell.data.water
@@ -174,15 +173,14 @@ pub mod island {
             } else {
                 drop(cell);
             }
-            let cell = graph_cells_clone.get(id).unwrap();
         }
         return graph;
     }
 
     pub fn assign_land_elevation(graph: &mut Graph) -> &mut Graph {
-        let graph_edge_clone = graph.edges.clone();
-        let graph_corner_clone = graph.corners.clone();
-        let coastal_corner_ids: Vec<(Uuid, f32)> = graph_corner_clone
+        let mut graph_clone = graph.clone();
+        let coastal_corner_ids: Vec<(Uuid, f32)> = graph_clone
+            .corners
             .iter()
             .filter(|(_k, v)| v.data.coast)
             .map(|(k, _v)| (k.clone(), 0.0))
@@ -191,10 +189,14 @@ pub mod island {
         let mut processed: HashSet<Uuid> = HashSet::new();
 
         while let Some((id, base_evelation)) = queue.pop_front() {
-            let new_elev = base_evelation + 1.0;
-            println!("{}", new_elev);
             processed.insert(id.clone());
             let corner = graph.corners.get_mut(&id).unwrap();
+            let has_adjacent_lake = corner
+                .cells
+                .iter()
+                .map(|c_id| graph.cells.get(c_id).unwrap())
+                .any(|cell| cell.data.water);
+            let new_elev = base_evelation + if has_adjacent_lake { 0.0 } else { 1.0 };
             let a_corners: Vec<&Uuid> = corner
                 .edges
                 .iter()
@@ -203,7 +205,7 @@ pub mod island {
                 .concat();
 
             for a_corner_id in a_corners {
-                let a_edge = graph_corner_clone.get(&a_corner_id).unwrap();
+                let a_edge = graph_clone.corners.get(&a_corner_id).unwrap();
                 if !a_corner_id.eq(&id)
                     && !processed.contains(&a_corner_id)
                     && !a_edge.data.coast
@@ -217,6 +219,18 @@ pub mod island {
             let corner_mut = graph.corners.get_mut(&id).unwrap();
             corner_mut.data.elevation = new_elev;
             drop(corner_mut);
+        }
+        graph_clone = graph.clone();
+        for edge_id in graph_clone.edges.keys() {
+            let edge = graph.edges.get_mut(edge_id).unwrap();
+            let c1 = graph_clone.corners.get(&edge_id.0).unwrap();
+            let c2 = graph_clone.corners.get(&edge_id.1).unwrap();
+            edge.down_corner = if c1.data.elevation < c2.data.elevation {
+                c1.id.clone()
+            } else {
+                c2.id.clone()
+            };
+            drop(edge);
         }
         return graph;
     }
