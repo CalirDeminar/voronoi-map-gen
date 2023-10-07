@@ -1,9 +1,7 @@
 use graph::graph::{Corner, Edge, Graph};
 pub mod graph;
 pub mod terrain;
-use nannou::color::encoding::Linear;
-use nannou::color::Blend;
-use nannou::{draw::mesh::vertex::Color, prelude::*};
+use nannou::prelude::*;
 use terrain::terrain::run_terrain_gen;
 
 use crate::graph::graph::generate_base_diagram;
@@ -94,46 +92,54 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 p1 = p2;
                 p2 = t;
             }
+
+            let pt_1 = pt2(
+                p1.pos.0 - (X_SCALE as f32 / 2.0),
+                p1.pos.1 - (Y_SCALE as f32 / 2.0),
+            );
+            let pt_2 = pt2(
+                p2.pos.0 - (X_SCALE as f32 / 2.0),
+                p2.pos.1 - (Y_SCALE as f32 / 2.0),
+            );
+
+            let weight = if edge.data.coast {
+                3.0
+            } else if edge.data.river > 0 {
+                (edge.data.river as f32).sqrt() * 2.0
+            } else {
+                1.0
+            };
+
             let has_ocean_cell = edge
                 .cells
                 .iter()
                 .any(|c_id| model.graph.cells.get(c_id).unwrap().data.ocean);
+
             draw.line()
-                .start(pt2(
-                    p1.pos.0 - (X_SCALE as f32 / 2.0),
-                    p1.pos.1 - (Y_SCALE as f32 / 2.0),
-                ))
-                .end(pt2(
-                    p2.pos.0 - (X_SCALE as f32 / 2.0),
-                    p2.pos.1 - (Y_SCALE as f32 / 2.0),
-                ))
-                .weight(if edge.data.coast { 3.0 } else { 1.0 })
+                .start(pt_1)
+                .end(pt_2)
+                .weight(weight)
                 .color(if edge.data.water && !has_ocean_cell {
                     LinSrgb::new(0.2, 0.33, 1.0)
                 } else {
                     LinSrgb::new(0.0, 0.0, 0.0)
                 })
                 .z(2.0);
-            if !edge.data.ocean {
-                draw.arrow()
-                    .start(pt2(
-                        p1.pos.0 - (X_SCALE as f32 / 2.0),
-                        p1.pos.1 - (Y_SCALE as f32 / 2.0),
-                    ))
-                    .end(pt2(
-                        p2.pos.0 - (X_SCALE as f32 / 2.0),
-                        p2.pos.1 - (Y_SCALE as f32 / 2.0),
-                    ))
-                    .weight(1.0)
-                    .head_length(6.0)
-                    .head_width(3.0)
-                    .color(if edge.data.water && !has_ocean_cell {
-                        LinSrgb::new(0.2, 0.33, 1.0)
-                    } else {
-                        LinSrgb::new(0.0, 0.0, 0.0)
-                    })
-                    .z(2.0);
-            }
+
+            // if !edge.data.ocean {
+            //     draw.arrow()
+            //         .start(pt_1)
+            //         .end(pt_2)
+            //         .weight(weight)
+            //         .head_length(6.0)
+            //         .head_width(3.0)
+            //         .color(if edge.data.water && !has_ocean_cell {
+            //             LinSrgb::new(0.2, 0.33, 1.0)
+            //         } else {
+            //             LinSrgb::new(0.0, 0.0, 0.0)
+            //         })
+            //         .z(2.0);
+            // }
         }
     }
     draw.to_frame(app, &frame).unwrap();

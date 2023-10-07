@@ -11,6 +11,7 @@ pub mod graph {
         pub ocean: bool,
         pub coast: bool,
         pub elevation: f32,
+        pub river: u32,
     }
 
     #[derive(Debug, Clone)]
@@ -120,6 +121,7 @@ pub mod graph {
                     water: false,
                     coast: false,
                     elevation: 0.0,
+                    river: 0,
                 },
             };
             // Corner Handling
@@ -146,6 +148,7 @@ pub mod graph {
                             water: false,
                             coast: false,
                             elevation: 0.0,
+                            river: 0,
                         },
                     };
                     cell_corner_ids.push(corner.id.clone());
@@ -194,6 +197,7 @@ pub mod graph {
                             water: false,
                             coast: false,
                             elevation: 0.0,
+                            river: 0,
                         },
                         down_corner: key.0.clone(),
                     };

@@ -8,11 +8,11 @@ pub mod island {
     use rand::RngCore;
     use uuid::Uuid;
 
+    use crate::{graph::graph::Graph, X_SCALE, Y_SCALE};
+
     const NOISE_SCALE: f32 = 4.0;
 
     const WATER_COVERAGE_MODIFIER: f64 = 1.0;
-
-    use crate::{graph::graph::Graph, X_SCALE, Y_SCALE};
 
     fn find_edge_corner_ids(graph: &Graph) -> Vec<&Uuid> {
         let mut output: Vec<&Uuid> = Vec::new();
@@ -172,103 +172,6 @@ pub mod island {
                 }
             } else {
                 drop(cell);
-            }
-        }
-        return graph;
-    }
-
-    pub fn assign_land_elevation(graph: &mut Graph) -> &mut Graph {
-        let mut graph_clone = graph.clone();
-        let coastal_corner_ids: Vec<(Uuid, f32)> = graph_clone
-            .corners
-            .iter()
-            .filter(|(_k, v)| v.data.coast)
-            .map(|(k, _v)| (k.clone(), 0.0))
-            .collect();
-        let mut queue: VecDeque<(Uuid, f32)> = VecDeque::from(coastal_corner_ids);
-        let mut processed: HashSet<Uuid> = HashSet::new();
-
-        while let Some((id, base_evelation)) = queue.pop_front() {
-            processed.insert(id.clone());
-            let corner = graph.corners.get_mut(&id).unwrap();
-            let has_adjacent_lake = corner
-                .cells
-                .iter()
-                .map(|c_id| graph.cells.get(c_id).unwrap())
-                .any(|cell| cell.data.water);
-            let new_elev = base_evelation + if has_adjacent_lake { 0.0 } else { 1.0 };
-            let a_corners: Vec<&Uuid> = corner
-                .edges
-                .iter()
-                .map(|(c1, c2)| vec![c1, c2])
-                .collect::<Vec<Vec<&Uuid>>>()
-                .concat();
-
-            for a_corner_id in a_corners {
-                let a_edge = graph_clone.corners.get(&a_corner_id).unwrap();
-                if !a_corner_id.eq(&id)
-                    && !processed.contains(&a_corner_id)
-                    && !a_edge.data.coast
-                    && !a_edge.data.ocean
-                {
-                    queue.push_back((a_corner_id.clone(), new_elev.clone()));
-                    processed.insert(a_corner_id.clone());
-                }
-            }
-
-            let corner_mut = graph.corners.get_mut(&id).unwrap();
-            corner_mut.data.elevation = new_elev;
-            drop(corner_mut);
-        }
-        graph_clone = graph.clone();
-        for edge_id in graph_clone.edges.keys() {
-            let edge = graph.edges.get_mut(edge_id).unwrap();
-            let c1 = graph_clone.corners.get(&edge_id.0).unwrap();
-            let c2 = graph_clone.corners.get(&edge_id.1).unwrap();
-            edge.data.elevation = (c1.data.elevation + c2.data.elevation) / 2.0;
-            edge.down_corner = if c1.data.elevation < c2.data.elevation {
-                c1.id.clone()
-            } else {
-                c2.id.clone()
-            };
-            drop(edge);
-        }
-        return graph;
-    }
-
-    pub fn create_rivers<'a>(graph: &'a mut Graph) -> &'a mut Graph {
-        let graph_clone = graph.clone();
-        let possible_starting_edges = graph_clone
-            .edges
-            .values()
-            .filter(|c| c.data.elevation > 0.0);
-        let starting_edges = possible_starting_edges.take(20);
-        for edge in starting_edges {
-            let mut working_edge = edge;
-            loop {
-                let edge_mut = graph.edges.get_mut(&working_edge.corners).unwrap();
-                edge_mut.data.water = true;
-                drop(edge_mut);
-
-                let down_corner = graph_clone.corners.get(&working_edge.down_corner).unwrap();
-
-                if down_corner.data.water {
-                    break;
-                }
-
-                let mut down_corner_edges = down_corner.edges.clone();
-                down_corner_edges.sort_by(|a_id, b_id| {
-                    graph
-                        .edges
-                        .get(a_id)
-                        .unwrap()
-                        .data
-                        .elevation
-                        .partial_cmp(&graph.edges.get(b_id).unwrap().data.elevation)
-                        .unwrap()
-                });
-                let next_edge = down_corner_edges.first().unwrap();
-                working_edge = graph_clone.edges.get(next_edge).unwrap();
             }
         }
         return graph;
