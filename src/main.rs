@@ -1,4 +1,4 @@
-use graph::graph::{Corner, Edge, Graph};
+use graph::graph::{Biome, Cell, Corner, Edge, Graph};
 pub mod graph;
 pub mod helpers;
 pub mod terrain;
@@ -14,9 +14,23 @@ const FRESH_WATER: (f32, f32, f32) = (0.2, 0.33, 1.0);
 const SALT_WATER: (f32, f32, f32) = (0.2, 0.33, 1.0);
 const EDGE: (f32, f32, f32) = (0.0, 0.0, 0.0);
 
-const BEACH: (f32, f32, f32) = (0.965, 0.843, 0.69);
+const BEACH: (f32, f32, f32) = (0.62, 0.56, 0.46);
+const ICE: (f32, f32, f32) = (0.6, 1.0, 1.0);
+const MARSH: (f32, f32, f32) = (0.18, 0.4, 0.4);
+const SNOW: (f32, f32, f32) = (1.0, 1.0, 1.0);
+const TUNDRA: (f32, f32, f32) = (0.73, 0.73, 0.7);
+const BARE: (f32, f32, f32) = (0.53, 0.53, 0.53);
+const TAIGA: (f32, f32, f32) = (0.6, 0.66, 0.47);
+const SHRUBLAND: (f32, f32, f32) = (0.53, 0.6, 0.47);
+const TEMPERATEDESERT: (f32, f32, f32) = (0.79, 0.82, 0.61);
+const TEMPERATERAINFOREST: (f32, f32, f32) = (0.26, 0.53, 0.33);
+const TEMPERATEFOREST: (f32, f32, f32) = (0.4, 0.59, 0.34);
+const GRASSLAND: (f32, f32, f32) = (0.53, 0.66, 0.34);
+const SUBTROPICALDESERT: (f32, f32, f32) = (0.79, 0.73, 0.54);
+const TROPICALRAINFOREST: (f32, f32, f32) = (0.2, 0.47, 0.33);
+const TROPICALFOREST: (f32, f32, f32) = (0.33, 0.59, 0.26);
 
-const I: usize = 2000;
+const I: usize = 5000;
 
 fn main() {
     nannou::app(model).update(update).run();
@@ -44,12 +58,6 @@ fn update(_app: &App, _model: &mut Model, _update: Update) {}
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();
     draw.background().color(WHITE);
-    let max_elevation = model
-        .graph
-        .corners
-        .values()
-        .map(|c| c.data.elevation)
-        .fold(0.0, |acc, i| if i > acc { i } else { acc });
 
     for cell in model.graph.cells.values() {
         let points: Vec<&Corner> = cell
@@ -57,24 +65,10 @@ fn view(app: &App, model: &Model, frame: Frame) {
             .iter()
             .map(|id| model.graph.corners.get(id).unwrap())
             .collect();
-        let mean_elevation = points
-            .iter()
-            .fold(0.0, |acc, e| acc + (e.data.elevation / points.len() as f32));
         // let mut prev: Option<&&Corner> = p.last();
         let poly_points = points.iter().map(|c| {
-            let colour: LinSrgb<f32> = if cell.data.ocean {
-                LinSrgb::from(SALT_WATER)
-            } else if cell.data.water {
-                LinSrgb::from(FRESH_WATER)
-            } else if cell.data.coast {
-                LinSrgb::from(BEACH)
-            } else {
-                LinSrgb::new(
-                    mean_elevation / max_elevation,
-                    0.2 + ((mean_elevation / max_elevation) * 0.8),
-                    mean_elevation / max_elevation,
-                )
-            };
+            let colour: LinSrgb<f32> = LinSrgb::from(cell_colour(cell));
+
             return (
                 (
                     c.pos.0 - (X_SCALE as f32 / 2.0),
@@ -83,7 +77,17 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 colour,
             );
         });
+        let l = poly_points.len();
+        let points_center = poly_points.clone().fold((0.0, 0.0), |acc, ((x, y), _x)| {
+            (acc.0 + (x / l as f32), acc.1 + (y / l as f32))
+        });
         draw.polygon().points_colored(poly_points).z(1.0);
+
+        draw.text(cell_short(cell))
+            .xy(pt2(points_center.0, points_center.1))
+            .font_size(9)
+            .color(BLACK)
+            .z(5.0);
 
         let edges: Vec<&Edge> = cell
             .edges
@@ -150,4 +154,50 @@ fn edge_colour(has_water: bool, has_ocean: bool) -> (f32, f32, f32) {
     } else {
         return EDGE;
     }
+}
+
+fn cell_colour(cell: &Cell) -> (f32, f32, f32) {
+    return match cell.data.biome {
+        Biome::Ocean => SALT_WATER,
+        Biome::Lake => FRESH_WATER,
+        Biome::Beach => BEACH,
+        Biome::Ice => ICE,
+        Biome::Marsh => MARSH,
+        Biome::Snow => SNOW,
+        Biome::Tundra => TUNDRA,
+        Biome::Bare => BARE,
+        Biome::Taiga => TAIGA,
+        Biome::Shrubland => SHRUBLAND,
+        Biome::TemperateDesert => TEMPERATEDESERT,
+        Biome::TemperateForest => TEMPERATEFOREST,
+        Biome::TemperateRainForest => TEMPERATERAINFOREST,
+        Biome::Grassland => GRASSLAND,
+        Biome::SubtropicalDesert => SUBTROPICALDESERT,
+        Biome::TropicalRainForest => TROPICALRAINFOREST,
+        Biome::TropicalForest => TROPICALFOREST,
+        _ => (1.0, 1.0, 1.0),
+    };
+}
+
+fn cell_short(cell: &Cell) -> &str {
+    return match cell.data.biome {
+        Biome::Ocean => "",
+        Biome::Lake => "LKE",
+        Biome::Beach => "BCH",
+        Biome::Ice => "ICE",
+        Biome::Marsh => "MSH",
+        Biome::Snow => "SNW",
+        Biome::Tundra => "TUND",
+        Biome::Bare => "BARE",
+        Biome::Taiga => "TAIG",
+        Biome::Shrubland => "SHRUB",
+        Biome::TemperateDesert => "TDST",
+        Biome::TemperateForest => "TFST",
+        Biome::TemperateRainForest => "TRFST",
+        Biome::Grassland => "GSLD",
+        Biome::SubtropicalDesert => "STDST",
+        Biome::TropicalRainForest => "TRFST",
+        Biome::TropicalForest => "TRFST",
+        _ => "???",
+    };
 }

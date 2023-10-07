@@ -26,7 +26,6 @@ pub mod rivers {
             let mut visited_corners: Vec<Uuid> = Vec::new();
             loop {
                 new_volume += 1;
-                println!("New Volume: {}", new_volume);
                 let edge_mut = graph.edges.get_mut(&working_edge.corners).unwrap();
                 edge_mut.data.water = true;
                 edge_mut.data.river = edge_mut.data.river + new_volume;

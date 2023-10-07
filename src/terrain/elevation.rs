@@ -60,7 +60,22 @@ pub mod elevation {
             };
             drop(edge);
         }
+        calc_cell_elevation(graph);
         normalise_elevation(graph);
+        return graph;
+    }
+
+    fn calc_cell_elevation<'a>(graph: &'a mut Graph) -> &'a mut Graph {
+        let graph_clone = graph.clone();
+        for c_id in graph_clone.cells.keys() {
+            let cell = graph.cells.get_mut(c_id).unwrap();
+            let cl = cell.corners.len();
+            let avg_elev = cell.corners.iter().fold(0.0, |acc, cn_id| {
+                acc + (graph_clone.corners.get(cn_id).unwrap().data.elevation / cl as f32)
+            });
+            cell.data.elevation = avg_elev;
+            drop(cell);
+        }
         return graph;
     }
 
@@ -84,6 +99,7 @@ pub mod elevation {
         for c_id in graph_clone.cells.keys() {
             let cell = graph.cells.get_mut(c_id).unwrap();
             cell.data.elevation /= max_elev;
+
             drop(cell);
         }
         return graph;
