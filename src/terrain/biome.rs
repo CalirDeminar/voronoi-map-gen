@@ -89,8 +89,10 @@ pub mod biome {
                     cell.data.biome = Biome::TropicalRainForest;
                 } else if cell.data.moisture > 0.33 {
                     cell.data.biome = Biome::TemperateForest;
-                } else {
+                } else if cell.data.moisture > 0.15 {
                     cell.data.biome = Biome::Grassland;
+                } else {
+                    cell.data.biome = Biome::SubtropicalDesert;
                 }
             }
             drop(cell);
