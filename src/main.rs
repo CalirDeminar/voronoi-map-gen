@@ -1,5 +1,6 @@
 use graph::graph::{Corner, Edge, Graph};
 pub mod graph;
+pub mod helpers;
 pub mod terrain;
 use nannou::prelude::*;
 use terrain::terrain::run_terrain_gen;
@@ -8,6 +9,12 @@ use crate::graph::graph::generate_base_diagram;
 
 pub const X_SCALE: f64 = 1600.0;
 pub const Y_SCALE: f64 = 800.0;
+
+const FRESH_WATER: (f32, f32, f32) = (0.2, 0.33, 1.0);
+const SALT_WATER: (f32, f32, f32) = (0.2, 0.33, 1.0);
+const EDGE: (f32, f32, f32) = (0.0, 0.0, 0.0);
+
+const BEACH: (f32, f32, f32) = (0.965, 0.843, 0.69);
 
 const I: usize = 2000;
 
@@ -56,11 +63,11 @@ fn view(app: &App, model: &Model, frame: Frame) {
         // let mut prev: Option<&&Corner> = p.last();
         let poly_points = points.iter().map(|c| {
             let colour: LinSrgb<f32> = if cell.data.ocean {
-                LinSrgb::new(0.0, 0.0, 1.0)
+                LinSrgb::from(SALT_WATER)
             } else if cell.data.water {
-                LinSrgb::new(0.2, 0.33, 1.0)
+                LinSrgb::from(FRESH_WATER)
             } else if cell.data.coast {
-                LinSrgb::new(0.965, 0.843, 0.69)
+                LinSrgb::from(BEACH)
             } else {
                 LinSrgb::new(
                     mean_elevation / max_elevation,
@@ -119,11 +126,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 .start(pt_1)
                 .end(pt_2)
                 .weight(weight)
-                .color(if edge.data.water && !has_ocean_cell {
-                    LinSrgb::new(0.2, 0.33, 1.0)
-                } else {
-                    LinSrgb::new(0.0, 0.0, 0.0)
-                })
+                .color(LinSrgb::from(edge_colour(edge.data.water, has_ocean_cell)))
                 .z(2.0);
 
             // if !edge.data.ocean {
@@ -133,14 +136,18 @@ fn view(app: &App, model: &Model, frame: Frame) {
             //         .weight(weight)
             //         .head_length(6.0)
             //         .head_width(3.0)
-            //         .color(if edge.data.water && !has_ocean_cell {
-            //             LinSrgb::new(0.2, 0.33, 1.0)
-            //         } else {
-            //             LinSrgb::new(0.0, 0.0, 0.0)
-            //         })
+            //         .color(LinSrgb::from(edge_colour(edge.data.water, has_ocean_cell)))
             //         .z(2.0);
             // }
         }
     }
     draw.to_frame(app, &frame).unwrap();
+}
+
+fn edge_colour(has_water: bool, has_ocean: bool) -> (f32, f32, f32) {
+    if has_water && !has_ocean {
+        return FRESH_WATER;
+    } else {
+        return EDGE;
+    }
 }

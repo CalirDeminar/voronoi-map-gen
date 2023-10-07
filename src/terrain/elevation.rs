@@ -60,6 +60,32 @@ pub mod elevation {
             };
             drop(edge);
         }
+        normalise_elevation(graph);
+        return graph;
+    }
+
+    fn normalise_elevation<'a>(graph: &'a mut Graph) -> &'a mut Graph {
+        let graph_clone = graph.clone();
+        let max_elev = graph_clone
+            .corners
+            .values()
+            .map(|c| c.data.elevation)
+            .fold(0.0, |acc, e| if e > acc { e } else { acc });
+        for c_id in graph_clone.corners.keys() {
+            let corner = graph.corners.get_mut(c_id).unwrap();
+            corner.data.elevation /= max_elev;
+            drop(corner);
+        }
+        for e_id in graph_clone.edges.keys() {
+            let edge = graph.edges.get_mut(e_id).unwrap();
+            edge.data.elevation /= max_elev;
+            drop(edge);
+        }
+        for c_id in graph_clone.cells.keys() {
+            let cell = graph.cells.get_mut(c_id).unwrap();
+            cell.data.elevation /= max_elev;
+            drop(cell);
+        }
         return graph;
     }
 }

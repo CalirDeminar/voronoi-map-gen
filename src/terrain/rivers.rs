@@ -1,29 +1,18 @@
 pub mod rivers {
     use uuid::Uuid;
 
-    use crate::graph::graph::Corner;
     use crate::graph::graph::Edge;
     use crate::graph::graph::Graph;
 
-    const PEAK_RAINWATER_COLLECTION_RATIO: f32 = 0.2;
+    const PEAK_RAINWATER_COLLECTION_RATIO: f32 = 0.1;
 
     pub fn create_rivers<'a>(graph: &'a mut Graph) -> &'a mut Graph {
         let graph_clone = graph.clone();
-        let max_elev = graph_clone
-            .corners
-            .values()
-            .fold(0.0, |acc: f32, c: &Corner| {
-                if c.data.elevation > acc {
-                    c.data.elevation
-                } else {
-                    acc
-                }
-            });
 
         let possible_starting_edges: Vec<&Edge> = graph_clone
             .edges
             .values()
-            .filter(|c| c.data.elevation > max_elev * 0.75)
+            .filter(|c| c.data.elevation < 0.9 && c.data.elevation > 0.25)
             .collect();
 
         let starting_edge_count = ((possible_starting_edges.len()) as f32

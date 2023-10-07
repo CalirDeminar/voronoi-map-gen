@@ -6,12 +6,35 @@ pub mod graph {
     use voronator::{delaunator, VoronoiDiagram};
 
     #[derive(Debug, Clone)]
+    pub enum Biome {
+        Ocean,
+        Lake,
+        Beach,
+        Marsh,
+        Ice,
+        Snow,
+        Tundra,
+        Taiga,
+        Bare,
+        Shrubland,
+        TemperateDesert,
+        TemperateRainForest,
+        TemperateForest,
+        Grassland,
+        TropicalRainForest,
+        TropicalForest,
+        SubtropicalDesert,
+    }
+
+    #[derive(Debug, Clone)]
     pub struct WorldData {
         pub water: bool,
         pub ocean: bool,
         pub coast: bool,
         pub elevation: f32,
         pub river: u32,
+        pub moisture: f32,
+        pub biome: Biome,
     }
 
     #[derive(Debug, Clone)]
@@ -122,6 +145,8 @@ pub mod graph {
                     coast: false,
                     elevation: 0.0,
                     river: 0,
+                    moisture: 0.0,
+                    biome: Biome::Bare,
                 },
             };
             // Corner Handling
@@ -149,6 +174,8 @@ pub mod graph {
                             coast: false,
                             elevation: 0.0,
                             river: 0,
+                            moisture: 0.0,
+                            biome: Biome::Bare,
                         },
                     };
                     cell_corner_ids.push(corner.id.clone());
@@ -198,6 +225,8 @@ pub mod graph {
                             coast: false,
                             elevation: 0.0,
                             river: 0,
+                            moisture: 0.0,
+                            biome: Biome::Bare,
                         },
                         down_corner: key.0.clone(),
                     };
