@@ -225,12 +225,51 @@ pub mod island {
             let edge = graph.edges.get_mut(edge_id).unwrap();
             let c1 = graph_clone.corners.get(&edge_id.0).unwrap();
             let c2 = graph_clone.corners.get(&edge_id.1).unwrap();
+            edge.data.elevation = (c1.data.elevation + c2.data.elevation) / 2.0;
             edge.down_corner = if c1.data.elevation < c2.data.elevation {
                 c1.id.clone()
             } else {
                 c2.id.clone()
             };
             drop(edge);
+        }
+        return graph;
+    }
+
+    pub fn create_rivers<'a>(graph: &'a mut Graph) -> &'a mut Graph {
+        let graph_clone = graph.clone();
+        let possible_starting_edges = graph_clone
+            .edges
+            .values()
+            .filter(|c| c.data.elevation > 0.0);
+        let starting_edges = possible_starting_edges.take(20);
+        for edge in starting_edges {
+            let mut working_edge = edge;
+            loop {
+                let edge_mut = graph.edges.get_mut(&working_edge.corners).unwrap();
+                edge_mut.data.water = true;
+                drop(edge_mut);
+
+                let down_corner = graph_clone.corners.get(&working_edge.down_corner).unwrap();
+
+                if down_corner.data.water {
+                    break;
+                }
+
+                let mut down_corner_edges = down_corner.edges.clone();
+                down_corner_edges.sort_by(|a_id, b_id| {
+                    graph
+                        .edges
+                        .get(a_id)
+                        .unwrap()
+                        .data
+                        .elevation
+                        .partial_cmp(&graph.edges.get(b_id).unwrap().data.elevation)
+                        .unwrap()
+                });
+                let next_edge = down_corner_edges.first().unwrap();
+                working_edge = graph_clone.edges.get(next_edge).unwrap();
+            }
         }
         return graph;
     }

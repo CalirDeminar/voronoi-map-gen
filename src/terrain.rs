@@ -3,7 +3,8 @@ pub mod terrain {
     use crate::graph::graph::Graph;
 
     use super::island::island::{
-        assign_land_elevation, assign_ocean_cells, mark_coastal_cells, run_island_gen,
+        assign_land_elevation, assign_ocean_cells, create_rivers, mark_coastal_cells,
+        run_island_gen,
     };
 
     pub fn run_terrain_gen(graph: &mut Graph) -> &mut Graph {
@@ -11,6 +12,7 @@ pub mod terrain {
         assign_ocean_cells(graph);
         mark_coastal_cells(graph);
         assign_land_elevation(graph);
+        create_rivers(graph);
         return graph;
     }
 }

@@ -87,8 +87,17 @@ fn view(app: &App, model: &Model, frame: Frame) {
             .collect();
 
         for edge in &edges {
-            let p1 = model.graph.corners.get(&edge.corners.0).unwrap();
-            let p2 = model.graph.corners.get(&edge.corners.1).unwrap();
+            let mut p1 = model.graph.corners.get(&edge.corners.0).unwrap();
+            let mut p2 = model.graph.corners.get(&edge.corners.1).unwrap();
+            if !edge.corners.1.eq(&edge.down_corner) {
+                let t = p1;
+                p1 = p2;
+                p2 = t;
+            }
+            let has_ocean_cell = edge
+                .cells
+                .iter()
+                .any(|c_id| model.graph.cells.get(c_id).unwrap().data.ocean);
             draw.line()
                 .start(pt2(
                     p1.pos.0 - (X_SCALE as f32 / 2.0),
@@ -99,20 +108,32 @@ fn view(app: &App, model: &Model, frame: Frame) {
                     p2.pos.1 - (Y_SCALE as f32 / 2.0),
                 ))
                 .weight(if edge.data.coast { 3.0 } else { 1.0 })
-                .color(BLACK)
+                .color(if edge.data.water && !has_ocean_cell {
+                    LinSrgb::new(0.2, 0.33, 1.0)
+                } else {
+                    LinSrgb::new(0.0, 0.0, 0.0)
+                })
                 .z(2.0);
-            // draw.text(&format!("{}", p1.data.elevation))
-            //     .glyph_colors([BLACK])
-            //     .font_size(12)
-            //     .x(p1.pos.0 - (X_SCALE as f32 / 2.0))
-            //     .y(p1.pos.1 - (Y_SCALE as f32 / 2.0))
-            //     .z(3.0);
-            // draw.text(&format!("{}", p2.data.elevation))
-            //     .glyph_colors([BLACK])
-            //     .font_size(12)
-            //     .x(p2.pos.0 - (X_SCALE as f32 / 2.0))
-            //     .y(p2.pos.1 - (Y_SCALE as f32 / 2.0))
-            //     .z(3.0);
+            if !edge.data.ocean {
+                draw.arrow()
+                    .start(pt2(
+                        p1.pos.0 - (X_SCALE as f32 / 2.0),
+                        p1.pos.1 - (Y_SCALE as f32 / 2.0),
+                    ))
+                    .end(pt2(
+                        p2.pos.0 - (X_SCALE as f32 / 2.0),
+                        p2.pos.1 - (Y_SCALE as f32 / 2.0),
+                    ))
+                    .weight(1.0)
+                    .head_length(6.0)
+                    .head_width(3.0)
+                    .color(if edge.data.water && !has_ocean_cell {
+                        LinSrgb::new(0.2, 0.33, 1.0)
+                    } else {
+                        LinSrgb::new(0.0, 0.0, 0.0)
+                    })
+                    .z(2.0);
+            }
         }
     }
     draw.to_frame(app, &frame).unwrap();
