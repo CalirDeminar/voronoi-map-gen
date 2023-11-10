@@ -1,4 +1,5 @@
 pub mod biome;
+pub mod edge_noise;
 pub mod elevation;
 pub mod island;
 pub mod rivers;
@@ -6,8 +7,8 @@ pub mod terrain {
     use crate::{
         graph::graph::Graph,
         terrain::{
-            biome::biome::assign_biomes, elevation::elevation::assign_land_elevation,
-            rivers::rivers::create_rivers,
+            biome::biome::assign_biomes, edge_noise::edge_noise::add_noise_to_edges,
+            elevation::elevation::assign_land_elevation, rivers::rivers::create_rivers,
         },
     };
 
@@ -20,6 +21,7 @@ pub mod terrain {
         assign_land_elevation(graph);
         create_rivers(graph);
         assign_biomes(graph);
+        add_noise_to_edges(graph);
         println!("Genned");
         return graph;
     }

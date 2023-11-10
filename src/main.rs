@@ -1,5 +1,6 @@
 use graph::graph::{Biome, Cell, Corner, Graph};
 pub mod graph;
+pub mod graph2;
 pub mod helpers;
 pub mod terrain;
 use nannou::prelude::*;
@@ -30,7 +31,7 @@ const SUBTROPICALDESERT: (f32, f32, f32) = (0.79, 0.73, 0.54);
 const TROPICALRAINFOREST: (f32, f32, f32) = (0.2, 0.47, 0.33);
 const TROPICALFOREST: (f32, f32, f32) = (0.33, 0.59, 0.26);
 
-const I: usize = 8000;
+const I: usize = 4000;
 
 fn main() {
     nannou::app(model).update(update).run();
@@ -101,41 +102,67 @@ fn view(app: &App, model: &Model, frame: Frame) {
         let is_river = edge.data.river > 0.0;
 
         if is_coast || is_river {
-            let mut p1 = model.graph.corners.get(&edge.corners.0).unwrap();
-            let mut p2 = model.graph.corners.get(&edge.corners.1).unwrap();
-            if !edge.corners.1.eq(&edge.down_corner) {
-                let t = p1;
-                p1 = p2;
-                p2 = t;
-            }
+            for idx in 1..edge.noisey_midpoints.len() {
+                let p1 = edge.noisey_midpoints[idx - 1];
+                let p2 = edge.noisey_midpoints[idx];
 
-            let pt_1 = pt2(
-                p1.pos.0 - (X_SCALE as f32 / 2.0),
-                p1.pos.1 - (Y_SCALE as f32 / 2.0),
-            );
-            let pt_2 = pt2(
-                p2.pos.0 - (X_SCALE as f32 / 2.0),
-                p2.pos.1 - (Y_SCALE as f32 / 2.0),
-            );
+                let pt_1 = pt2(p1.0 - (X_SCALE as f32 / 2.0), p1.1 - (Y_SCALE as f32 / 2.0));
+                let pt_2 = pt2(p2.0 - (X_SCALE as f32 / 2.0), p2.1 - (Y_SCALE as f32 / 2.0));
 
-            if is_coast {
-                draw.line()
-                    .start(pt_1)
-                    .end(pt_2)
-                    .weight(3.0)
-                    .color(BLACK)
-                    .caps_round()
-                    .z(2.0);
+                if is_coast {
+                    draw.line()
+                        .start(pt_1)
+                        .end(pt_2)
+                        .weight(3.0)
+                        .color(BLACK)
+                        .caps_round()
+                        .z(2.0);
+                }
+                if is_river {
+                    draw.line()
+                        .start(pt_1)
+                        .end(pt_2)
+                        .weight((edge.data.river as f32).sqrt() * 0.3)
+                        .color(LinSrgb::from(FRESH_WATER))
+                        .caps_round()
+                        .z(2.0);
+                }
             }
-            if is_river {
-                draw.line()
-                    .start(pt_1)
-                    .end(pt_2)
-                    .weight((edge.data.river as f32).sqrt() * 0.3)
-                    .color(LinSrgb::from(FRESH_WATER))
-                    .caps_round()
-                    .z(2.0);
-            }
+            // let mut p1 = model.graph.corners.get(&edge.corners.0).unwrap();
+            // let mut p2 = model.graph.corners.get(&edge.corners.1).unwrap();
+            // if !edge.corners.1.eq(&edge.down_corner) {
+            //     let t = p1;
+            //     p1 = p2;
+            //     p2 = t;
+            // }
+
+            // let pt_1 = pt2(
+            //     p1.pos.0 - (X_SCALE as f32 / 2.0),
+            //     p1.pos.1 - (Y_SCALE as f32 / 2.0),
+            // );
+            // let pt_2 = pt2(
+            //     p2.pos.0 - (X_SCALE as f32 / 2.0),
+            //     p2.pos.1 - (Y_SCALE as f32 / 2.0),
+            // );
+
+            // if is_coast {
+            //     draw.line()
+            //         .start(pt_1)
+            //         .end(pt_2)
+            //         .weight(3.0)
+            //         .color(BLACK)
+            //         .caps_round()
+            //         .z(2.0);
+            // }
+            // if is_river {
+            //     draw.line()
+            //         .start(pt_1)
+            //         .end(pt_2)
+            //         .weight((edge.data.river as f32).sqrt() * 0.3)
+            //         .color(LinSrgb::from(FRESH_WATER))
+            //         .caps_round()
+            //         .z(2.0);
+            // }
         }
     }
     draw.to_frame(app, &frame).unwrap();

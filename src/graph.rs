@@ -54,6 +54,7 @@ pub mod graph {
         pub cells: Vec<Uuid>,
         pub data: WorldData,
         pub down_corner: Uuid,
+        pub noisey_midpoints: Vec<(f32, f32)>,
     }
 
     #[derive(Debug, Clone)]
@@ -229,6 +230,7 @@ pub mod graph {
                             biome: Biome::Bare,
                         },
                         down_corner: key.0.clone(),
+                        noisey_midpoints: Vec::new(),
                     };
                     graph_cell.edges.push(edge.corners.clone());
                     graph.edges.insert(
