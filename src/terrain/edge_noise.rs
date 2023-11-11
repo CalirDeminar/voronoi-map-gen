@@ -40,8 +40,6 @@ pub mod edge_noise {
                     j,
                 );
 
-                println!("Before: {:?}", o_mid);
-                println!("After: {:?}", mid);
                 output_buffer.push(mid);
             }
             output_buffer.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
