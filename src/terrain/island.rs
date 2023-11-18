@@ -97,11 +97,10 @@ pub mod island {
         while let Some(id) = queue.pop_front() {
             let cell = graph_clone.cells.get(&id).unwrap();
             processed.insert(id);
-            for id in &cell.neighbors {
-                let n_cell = graph_clone.cells.get(&id).unwrap();
-                if n_cell.data.water && !processed.contains(id) {
-                    processed.insert(id);
-                    queue.push_back(&id);
+            for n_cell in graph_clone.get_cell_adjacent_cells(&id) {
+                if n_cell.data.water && !processed.contains(&n_cell.id) {
+                    processed.insert(&n_cell.id);
+                    queue.push_back(&n_cell.id);
                 }
             }
 
@@ -131,23 +130,23 @@ pub mod island {
     }
 
     pub fn mark_coastal_cells(graph: &mut Graph) -> &mut Graph {
+        let graph_clone = graph.clone();
         let graph_cells_clone = graph.cells.clone();
         for id in graph_cells_clone.keys() {
             let mut cell = graph.cells.get_mut(id).unwrap();
             if !cell.data.water
                 && !cell.data.ocean
-                && cell
-                    .neighbors
+                && graph_clone
+                    .get_cell_adjacent_cells(&cell.id)
                     .iter()
-                    .any(|n_id| graph_cells_clone.get(n_id).unwrap().data.ocean)
+                    .any(|n_cell| n_cell.data.ocean)
             {
                 cell.data.coast = true;
                 drop(cell);
 
                 // edge handling
                 let cell = graph_cells_clone.get(id).unwrap();
-                for neighbor_id in &cell.neighbors {
-                    let neighbor = graph_cells_clone.get(neighbor_id).unwrap();
+                for neighbor in graph_clone.get_cell_adjacent_cells(&cell.id) {
                     if neighbor.data.ocean {
                         let shared_edges: Vec<&(Uuid, Uuid)> = cell
                             .edges

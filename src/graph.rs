@@ -39,7 +39,6 @@ pub mod graph {
     #[derive(Debug, Clone)]
     pub struct Cell {
         pub id: Uuid,
-        pub neighbors: Vec<Uuid>,
         pub edges: Vec<(Uuid, Uuid)>,
         pub corners: Vec<Uuid>,
         pub center: (f32, f32),
@@ -54,6 +53,7 @@ pub mod graph {
         pub data: WorldData,
         pub down_corner: Uuid,
         pub noisey_midpoints: Vec<(f32, f32)>,
+        pub river: f32,
     }
 
     #[derive(Debug, Clone)]
@@ -63,6 +63,7 @@ pub mod graph {
         pub edges: Vec<(Uuid, Uuid)>,
         pub cells: Vec<Uuid>,
         pub data: WorldData,
+        pub elevation: f32,
     }
 
     #[derive(Debug, Clone)]
@@ -70,6 +71,89 @@ pub mod graph {
         pub cells: HashMap<Uuid, Cell>,
         pub edges: HashMap<(Uuid, Uuid), Edge>,
         pub corners: HashMap<Uuid, Corner>,
+    }
+
+    impl Graph {
+        // cell getters
+        pub fn get_cell_edges(&self, cell_id: &Uuid) -> Vec<&Edge> {
+            let cell = self.cells.get(cell_id).unwrap();
+            return cell
+                .edges
+                .iter()
+                .map(|id| self.edges.get(id).unwrap())
+                .collect();
+        }
+        pub fn get_cell_corners(&self, cell_id: &Uuid) -> Vec<&Corner> {
+            let edges = self.get_cell_edges(cell_id);
+            return edges
+                .iter()
+                .fold(Vec::new(), |acc: Vec<&Corner>, edge: &&Edge| {
+                    vec![acc, self.get_edge_corners(&edge.corners)].concat()
+                });
+        }
+        pub fn get_cell_adjacent_cells(&self, cell_id: &Uuid) -> Vec<&Cell> {
+            let t_cell = self.cells.get(cell_id).unwrap();
+            let edges = self.get_cell_edges(cell_id);
+            let all_cells: Vec<Vec<&Cell>> = edges
+                .iter()
+                .map(|edge| self.get_edge_cells(&edge.corners))
+                .collect();
+            let mut flattened_cells = all_cells.concat();
+            flattened_cells.sort_by_key(|cell| cell.id);
+            flattened_cells.dedup_by_key(|cell| cell.id);
+            flattened_cells.retain(|cell| !t_cell.id.eq(&cell.id));
+            return flattened_cells;
+        }
+        pub fn get_cell_center(&self, cell_id: &Uuid) -> (f32, f32) {
+            let corners = self.get_cell_corners(cell_id);
+            let l = corners.len() as f32;
+            return corners.iter().fold((0.0, 0.0), |(x, y), corner| {
+                ((x + (corner.pos.0 / l)), y + (corner.pos.1 / l))
+            });
+        }
+        pub fn get_cell_elevation(&self, cell_id: &Uuid) -> f32 {
+            let corners = self.get_cell_corners(cell_id);
+            let l = corners.len() as f32;
+            return corners
+                .iter()
+                .fold(0.0, |acc, corner| 
+                    // TODO - move to navtive corner elevation
+                    acc + (corner.data.elevation / l));
+        }
+        // edge getters
+        pub fn get_edge_corners(&self, edge_id: &(Uuid, Uuid)) -> Vec<&Corner> {
+            let edge = self.edges.get(edge_id).unwrap();
+            let corner_1 = self.corners.get(&edge.corners.0).unwrap();
+            let corner_2 = self.corners.get(&edge.corners.1).unwrap();
+            return vec![corner_1, corner_2];
+        }
+        pub fn get_edge_cells(&self, edge_id: &(Uuid, Uuid)) -> Vec<&Cell> {
+            let edge = self.edges.get(edge_id).unwrap();
+            return edge
+                .cells
+                .iter()
+                .map(|id| self.cells.get(id).unwrap())
+                .collect();
+        }
+        pub fn get_edge_downhill_corner(&self, edge_id: &(Uuid, Uuid)) -> &Corner {
+            let edge = self.edges.get(edge_id).unwrap();
+            let corner_1 = self.corners.get(&edge.corners.0).unwrap();
+            let corner_2 = self.corners.get(&edge.corners.1).unwrap();
+            if corner_1.elevation < corner_2.elevation {
+                return corner_1;
+            } else {
+                return corner_2;
+            }
+        }
+        // corner getters
+        pub fn get_corner_edges(&self, corner_id: &Uuid) -> Vec<&Edge> {
+            let corner = self.corners.get(corner_id).unwrap();
+            return corner
+                .edges
+                .iter()
+                .map(|id| self.edges.get(id).unwrap())
+                .collect();
+        }
     }
 
     pub fn generate_base_diagram(i: usize, x_scale: f64, y_scale: f64) -> Graph {
@@ -83,7 +167,6 @@ pub mod graph {
             let cell_id = Uuid::new_v4();
             let mut graph_cell = Cell {
                 id: cell_id,
-                neighbors: Vec::new(),
                 edges: Vec::new(),
                 corners: Vec::new(),
                 center: (0.0, 0.0),
@@ -125,6 +208,7 @@ pub mod graph {
                             moisture: 0.0,
                             biome: Biome::Bare,
                         },
+                        elevation: 0.0,
                     };
                     cell_corner_ids.push(corner.id.clone());
                     graph_cell.corners.push(corner.id);
@@ -178,6 +262,7 @@ pub mod graph {
                         },
                         down_corner: key.0.clone(),
                         noisey_midpoints: Vec::new(),
+                        river: 0.0,
                     };
                     graph_cell.edges.push(edge.corners.clone());
                     graph.edges.insert(
@@ -198,18 +283,6 @@ pub mod graph {
 
             graph.cells.insert(cell_id, graph_cell);
         }
-        // Cell adjacency
-        for edge in graph.edges.values() {
-            for cell_id in &edge.cells {
-                let cell_mut = graph.cells.get_mut(&cell_id).unwrap();
-                for cell_id_2 in &edge.cells {
-                    if !cell_id.eq(cell_id_2) {
-                        cell_mut.neighbors.push(cell_id_2.clone());
-                    }
-                }
-                drop(cell_mut);
-            }
-        }
         let cells_clone = graph.cells.clone();
         let cell_ids = cells_clone.keys();
         // Cell centers
@@ -227,5 +300,23 @@ pub mod graph {
             drop(cell);
         }
         return graph;
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn gen_base_graph_test() {
+            let graph = generate_base_diagram(500, 100.0, 200.0);
+            for edge_id in graph.edges.keys() {
+                let edge_cells = graph.get_edge_cells(&edge_id);
+                assert!(edge_cells.len().eq(&2)||edge_cells.len().eq(&1));
+            }
+            for (cell_id, cell) in graph.cells.iter() {
+                let adjacent_cells = graph.get_cell_adjacent_cells(&cell_id);
+                assert!(adjacent_cells.len() <= cell.edges.len());
+            }
+        }
     }
 }
