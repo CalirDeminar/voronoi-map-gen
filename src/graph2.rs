@@ -79,20 +79,31 @@ pub mod graph2 {
             }
             return output;
         }
-        fn get_cell_corners_in_order(&self, id: &Uuid) -> Vec<&Corner> {
+        pub fn get_cell_corners_in_order(&self, id: &Uuid) -> Vec<&Corner> {
             let cell = &self.cells.get(id).unwrap();
             let mut working_edges = cell.edges.clone();
+            // println!("{:?}", working_edges.len());
+            if working_edges.len().eq(&0) {
+                return vec![];
+            }
             let mut output_corners: Vec<Uuid> = Vec::new();
             let mut last_edge_id = working_edges.remove(0);
             let starting_edge = &self.edges.get(&last_edge_id).unwrap();
             output_corners.push(starting_edge.corners.0);
             output_corners.push(starting_edge.corners.1);
             while working_edges.len() > 0 {
-                let next_edge_id = working_edges
+                let mut last_corner = output_corners.last().unwrap();
+                let mut next_edge_id_option = working_edges
                     .iter()
-                    .find(|e_id| self.edges_share_corners(e_id, &last_edge_id))
-                    .unwrap()
-                    .clone();
+                    .find(|e_id| self.edges_share_corner(e_id, last_corner));
+                if next_edge_id_option.is_none() {
+                    output_corners.reverse();
+                    last_corner = output_corners.last().unwrap();
+                    next_edge_id_option = working_edges
+                        .iter()
+                        .find(|e_id| self.edges_share_corner(e_id, last_corner));
+                }
+                let next_edge_id = next_edge_id_option.unwrap().clone();
                 let edge = self.edges.get(&next_edge_id).unwrap();
                 if !output_corners.contains(&edge.corners.0) {
                     output_corners.push(edge.corners.0);
@@ -117,13 +128,20 @@ pub mod graph2 {
             let c_2 = self.corners.get(&edge.corners.1).unwrap();
             return (c_1, c_2);
         }
-        fn edges_share_corners(&self, id_1: &Uuid, id_2: &Uuid) -> bool {
+        fn edges_share_same_corners(&self, id_1: &Uuid, index: usize, id_2: &Uuid) -> bool {
             let e_1 = self.edges.get(id_1).unwrap();
             let e_2 = self.edges.get(id_2).unwrap();
-            return (e_1.corners.0.eq(&e_2.corners.0))
-                || (e_2.corners.0.eq(&e_2.corners.1))
-                || (e_1.corners.1.eq(&e_2.corners.0))
-                || (e_2.corners.1.eq(&e_2.corners.1));
+            if index.eq(&0) {
+                return (e_1.corners.0.eq(&e_2.corners.0)) || (e_2.corners.0.eq(&e_2.corners.1));
+            }
+            if index.eq(&1) {
+                return (e_1.corners.1.eq(&e_2.corners.0)) || (e_2.corners.1.eq(&e_2.corners.1));
+            }
+            return false;
+        }
+        fn edges_share_corner(&self, edge_id: &Uuid, corner_id: &Uuid) -> bool {
+            let edge = self.edges.get(edge_id).unwrap();
+            return edge.corners.0.eq(corner_id) || edge.corners.1.eq(corner_id);
         }
         // corners
     }
@@ -166,6 +184,7 @@ pub mod graph2 {
                 };
                 // define edge
                 if point.eq(&first_point) || previous_point.is_none() {
+                    previous_point = Some(corner_id);
                     continue;
                 }
                 let prev_corner = graph.corners.get(&previous_point.unwrap()).unwrap();
@@ -195,7 +214,6 @@ pub mod graph2 {
                     graph.edges.insert(edge_id, edge);
                     edge_id
                 };
-
                 graph_cell.edges.push(edge_id);
                 previous_point = Some(corner_id);
             }

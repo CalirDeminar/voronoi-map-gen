@@ -1,14 +1,16 @@
-use graph::graph::Graph;
+use graph2::graph2::Graph;
 pub mod graph;
 pub mod graph2;
 pub mod helpers;
 pub mod renderer;
+pub mod renderer2;
 pub mod terrain;
 pub mod terrain2;
 pub mod voronoi;
+use graph2::graph2::generate_base_graph;
 use nannou::prelude::*;
 use nannou_egui::{self, egui, Egui};
-use renderer::renderer::render;
+use renderer2::renderer::render;
 use terrain::terrain::run_terrain_gen;
 
 use crate::graph::graph::generate_base_diagram;
@@ -16,7 +18,7 @@ use crate::graph::graph::generate_base_diagram;
 pub const X_SCALE: f64 = 1600.0;
 pub const Y_SCALE: f64 = 800.0;
 
-const I: usize = 2000;
+const I: usize = 500;
 
 fn main() {
     nannou::app(model).update(update).run();
@@ -36,8 +38,8 @@ fn model(app: &App) -> Model {
         .build()
         .unwrap();
     let window_a = app.window(window).unwrap();
-    let mut base_graph = generate_base_diagram(I, X_SCALE, Y_SCALE);
-    run_terrain_gen(&mut base_graph);
+    let mut base_graph = generate_base_graph(I, X_SCALE, Y_SCALE);
+    // run_terrain_gen(&mut base_graph);
     let egui = Egui::from_window(&window_a);
     // println!("Edge Cells: {}", base_graph.cells.values().filter(|cell| cell.data.ocean))
     Model {
@@ -52,8 +54,8 @@ fn update(_app: &App, model: &mut Model, _update: Update) {
     egui::Window::new("Settings").show(&ctx, |ui| {
         let regenerate = ui.button("Regenerate").clicked();
         if regenerate {
-            let mut base_graph = generate_base_diagram(I, X_SCALE, Y_SCALE);
-            run_terrain_gen(&mut base_graph);
+            let mut base_graph = generate_base_graph(I, X_SCALE, Y_SCALE);
+            // run_terrain_gen(&mut base_graph);
             model.graph = base_graph;
         }
     });
