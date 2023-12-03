@@ -1,9 +1,9 @@
 pub mod graph2 {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use uuid::Uuid;
     use voronator::delaunator::Point;
 
-    use crate::voronoi::voronoi::initialise_voronoi;
+    use crate::{helpers::helpers::create_benchmarker, voronoi::voronoi::initialise_voronoi};
 
     #[derive(Debug, Clone)]
     pub enum Biome {
@@ -49,6 +49,7 @@ pub mod graph2 {
         // Terrain Data
         pub water: bool,
         pub ocean: bool,
+        pub coast: bool,
         pub moisture: f32,
         pub biome: Biome,
     }
@@ -69,7 +70,7 @@ pub mod graph2 {
                 .map(|e_id| self.edges.get(e_id).unwrap())
                 .collect();
         }
-        fn get_cell_corners(&self, id: &Uuid) -> Vec<&Corner> {
+        pub fn get_cell_corners(&self, id: &Uuid) -> Vec<&Corner> {
             let cell = &self.cells.get(id).unwrap();
             let mut output: Vec<&Corner> = Vec::new();
             for edge in &cell.edges {
@@ -78,6 +79,39 @@ pub mod graph2 {
                 output.push(c_2);
             }
             return output;
+        }
+        pub fn get_cell_corners_ids(&self, id: &Uuid) -> HashSet<&Uuid> {
+            let cell = &self.cells.get(id).unwrap();
+            let mut output: HashSet<&Uuid> = HashSet::new();
+            for edge_id in &cell.edges {
+                let edge = self.edges.get(edge_id).unwrap();
+                output.insert(&edge.corners.0);
+                output.insert(&edge.corners.1);
+            }
+            return output;
+        }
+        pub fn get_cell_adjacent_cells(&self, id: &Uuid) -> Vec<&Uuid> {
+            let cell = self.cells.get(id).unwrap();
+            let mut output: Vec<&Uuid> = Vec::new();
+            for edge_id in &cell.edges {
+                let edge = self.edges.get(edge_id).unwrap();
+                for cell_id in &edge.cells {
+                    if !cell_id.eq(id) {
+                        output.push(&cell_id);
+                    }
+                }
+            }
+            return output;
+        }
+        pub fn get_cell_center(&self, id: &Uuid) -> (f32, f32) {
+            let corners = self.get_cell_corners(id);
+            let corners_len = corners.len();
+            return corners.iter().fold((0.0, 0.0), |(x, y), corner| {
+                (
+                    x + (corner.pos.0 / corners_len as f32),
+                    y + (corner.pos.1 / corners_len as f32),
+                )
+            });
         }
         pub fn get_cell_corners_in_order(&self, id: &Uuid) -> Vec<&Corner> {
             let cell = &self.cells.get(id).unwrap();
@@ -146,32 +180,50 @@ pub mod graph2 {
         // corners
     }
 
+    fn create_pos_key(x: f32, y: f32) -> String {
+        let mut x_refined = x;
+        if x.eq(&0.0) || x.eq(&-0.0) {
+            x_refined = 0.0;
+        }
+        let mut y_refined = y;
+        if y.eq(&0.0) || y.eq(&-0.0) {
+            y_refined = 0.0;
+        }
+        return format!("{:.5}-{:.5}", x_refined, y_refined);
+    }
+
     pub fn generate_base_graph(i: usize, x_scale: f64, y_scale: f64) -> Graph {
+        let voron_init = create_benchmarker(String::from("Voronoi Init"));
         let voronoi = initialise_voronoi(i, x_scale, y_scale, 5);
+        voron_init();
         let mut graph = Graph {
             cells: HashMap::new(),
             edges: HashMap::new(),
             corners: HashMap::new(),
         };
+        let mut point_cache: HashMap<String, Uuid> = HashMap::new();
+        let mut edge_cache: HashMap<String, Uuid> = HashMap::new();
+        let cell_init = create_benchmarker(String::from("Cell Init"));
         for cell in voronoi.cells() {
             let cell_id = Uuid::new_v4();
             let mut graph_cell = Cell {
                 edges: Vec::new(),
-                water: true,
-                ocean: true,
+                water: false,
+                ocean: false,
                 moisture: 0.0,
-                biome: Biome::Ocean,
+                biome: Biome::Bare,
+                coast: false,
             };
 
             let first_point = cell.points().first().unwrap();
             let mut previous_point: Option<Uuid> = None;
             for point in cell.points() {
                 // set up corner
-                let point_search = graph.corners.iter().find(|(_id, corner)| {
-                    corner.pos.0.eq(&(point.x as f32)) && corner.pos.1.eq(&(point.y as f32))
-                });
-                let corner_id = if point_search.is_some() {
-                    point_search.unwrap().0.clone()
+                let cache_search = point_cache.get(&create_pos_key(point.x as f32, point.y as f32));
+                // TODO - remove this whole point search thing. Should be unneeded
+
+                let corner_id = if cache_search.is_some() {
+                    cache_search.unwrap().clone()
                 } else {
                     let id = Uuid::new_v4();
                     let corner = Corner {
@@ -180,6 +232,7 @@ pub mod graph2 {
                         elevation: 0.0,
                     };
                     graph.corners.insert(id, corner);
+                    point_cache.insert(create_pos_key(point.x as f32, point.y as f32), id.clone());
                     id.clone()
                 };
                 // define edge
@@ -188,22 +241,13 @@ pub mod graph2 {
                     continue;
                 }
                 let prev_corner = graph.corners.get(&previous_point.unwrap()).unwrap();
-                let edge_search = graph.edges.iter().find(|(_id, edge)| {
-                    let c_1 = graph.corners.get(&edge.corners.0).unwrap();
-                    let c_2 = graph.corners.get(&edge.corners.1).unwrap();
-                    let c_1_prev_match =
-                        c_1.pos.0.eq(&prev_corner.pos.0) && c_1.pos.1.eq(&prev_corner.pos.1);
-                    let c_1_curr_match =
-                        c_1.pos.0.eq(&(point.x as f32)) && c_1.pos.1.eq(&(point.y as f32));
-                    let c_2_prev_match =
-                        c_2.pos.0.eq(&prev_corner.pos.0) && c_2.pos.1.eq(&prev_corner.pos.1);
-                    let c_2_curr_match =
-                        c_2.pos.0.eq(&(point.x as f32)) && c_2.pos.1.eq(&(point.y as f32));
-                    return (c_1_prev_match && c_2_curr_match)
-                        || (c_1_curr_match && c_2_prev_match);
-                });
-                let edge_id = if edge_search.is_some() {
-                    edge_search.unwrap().0.clone()
+                let c1_search = edge_cache.get(&format!(
+                    "{}{}",
+                    create_pos_key(prev_corner.pos.0, prev_corner.pos.1),
+                    create_pos_key(point.x as f32, point.y as f32)
+                ));
+                let edge_id = if c1_search.is_some() {
+                    c1_search.unwrap().clone()
                 } else {
                     let edge_id = Uuid::new_v4();
                     let edge = Edge {
@@ -215,10 +259,29 @@ pub mod graph2 {
                     edge_id
                 };
                 graph_cell.edges.push(edge_id);
+                let corner = graph.corners.get(&corner_id).unwrap();
+                edge_cache.insert(
+                    format!(
+                        "{}{}",
+                        create_pos_key(corner.pos.0, corner.pos.1),
+                        create_pos_key(prev_corner.pos.0, prev_corner.pos.1)
+                    ),
+                    edge_id,
+                );
+                edge_cache.insert(
+                    format!(
+                        "{}{}",
+                        create_pos_key(prev_corner.pos.0, prev_corner.pos.1),
+                        create_pos_key(corner.pos.0, corner.pos.1),
+                    ),
+                    edge_id,
+                );
                 previous_point = Some(corner_id);
             }
             graph.cells.insert(cell_id, graph_cell);
         }
+        cell_init();
+        let quick_ref_init = create_benchmarker(String::from("Quick Ref Init"));
         // fill quick reference vectors
         let graph_clone = graph.clone();
         for (cell_id, cell) in graph_clone.cells {
@@ -237,6 +300,8 @@ pub mod graph2 {
             corner_2.edges.push(edge_id);
             drop(corner_2);
         }
+        quick_ref_init();
+        println!("-----");
         return graph;
     }
 
@@ -305,6 +370,7 @@ pub mod graph2 {
                 moisture: 0.0,
                 biome: Biome::Bare,
                 edges: vec![e_3_id, e_1_id, e_2_id, e_4_id],
+                coast: false,
             };
             let mut cells: HashMap<Uuid, Cell> = HashMap::new();
             cells.insert(cell_id, cell);
