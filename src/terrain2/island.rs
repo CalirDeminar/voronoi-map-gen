@@ -121,6 +121,7 @@ pub mod island2 {
                     .any(|id| graph_clone.cells.get(id).unwrap().ocean)
             {
                 cell.coast = true;
+                cell.biome = Biome::Beach;
             }
             drop(cell);
         }

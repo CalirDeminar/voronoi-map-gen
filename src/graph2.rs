@@ -220,7 +220,6 @@ pub mod graph2 {
             for point in cell.points() {
                 // set up corner
                 let cache_search = point_cache.get(&create_pos_key(point.x as f32, point.y as f32));
-                // TODO - remove this whole point search thing. Should be unneeded
 
                 let corner_id = if cache_search.is_some() {
                     cache_search.unwrap().clone()
@@ -278,6 +277,49 @@ pub mod graph2 {
                 );
                 previous_point = Some(corner_id);
             }
+            let first_point = cell.points().first().unwrap();
+            let last_point = cell.points().last().unwrap();
+            let existing_edge = edge_cache.get(&format!(
+                "{}{}",
+                create_pos_key(first_point.x as f32, first_point.y as f32),
+                create_pos_key(last_point.x as f32, last_point.y as f32)
+            ));
+            if existing_edge.is_some() {
+                graph_cell.edges.push(existing_edge.unwrap().clone());
+            } else {
+                let edge_id = Uuid::new_v4();
+                let c_1 =
+                    point_cache.get(&create_pos_key(first_point.x as f32, first_point.y as f32));
+                let c_2 =
+                    point_cache.get(&create_pos_key(last_point.x as f32, last_point.y as f32));
+                if c_1.is_some() && c_2.is_some() {
+                    let edge = Edge {
+                        corners: (c_1.unwrap().clone(), c_2.unwrap().clone()),
+                        cells: Vec::new(),
+                        river: 0.0,
+                    };
+                    graph.edges.insert(edge_id, edge);
+                    edge_cache.insert(
+                        format!(
+                            "{}{}",
+                            create_pos_key(first_point.x as f32, first_point.y as f32),
+                            create_pos_key(last_point.x as f32, last_point.y as f32)
+                        ),
+                        edge_id,
+                    );
+                    edge_cache.insert(
+                        format!(
+                            "{}{}",
+                            create_pos_key(last_point.x as f32, last_point.y as f32),
+                            create_pos_key(first_point.x as f32, first_point.y as f32),
+                        ),
+                        edge_id,
+                    );
+                } else {
+                    println!("Edge Sealing lookup failure")
+                }
+            }
+            // TODO - handle last edge case, wrapping back to front
             graph.cells.insert(cell_id, graph_cell);
         }
         cell_init();
