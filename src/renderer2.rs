@@ -10,7 +10,7 @@ pub mod renderer {
     use crate::Y_SCALE;
 
     const FRESH_WATER: (f32, f32, f32) = (0.2, 0.33, 1.0);
-    const SALT_WATER: (f32, f32, f32) = (0.2, 0.33, 1.0);
+    const SALT_WATER: (f32, f32, f32) = (0.15, 0.25, 0.75);
     // const EDGE: (f32, f32, f32) = (0.0, 0.0, 0.0);
 
     const BEACH: (f32, f32, f32) = (0.62, 0.56, 0.46);
@@ -48,13 +48,13 @@ pub mod renderer {
                     colour,
                 );
             });
-            // for (i, point) in points.iter().enumerate() {
-            //     draw.text(&format!("{}", i))
+            // for point in &points {
+            //     draw.text(&format!("{}", point.elevation))
             //         .xy(pt2(
             //             point.pos.0 - (X_SCALE as f32 / 2.0),
             //             point.pos.1 - (Y_SCALE as f32 / 2.0),
             //         ))
-            //         .font_size(12)
+            //         .font_size(9)
             //         .color(BLACK)
             //         .z(5.0);
             // }
@@ -69,54 +69,65 @@ pub mod renderer {
                         acc.1 + (y / points_len as f32),
                     )
                 });
-                draw.text(cell_short(cell))
-                    .xy(pt2(points_center.0, points_center.1))
-                    .font_size(9)
-                    .color(BLACK)
-                    .z(5.0);
+                // draw.text(cell_short(cell))
+                //     .xy(pt2(points_center.0, points_center.1))
+                //     .font_size(9)
+                //     .color(BLACK)
+                //     .z(5.0);
+                draw.text(&format!(
+                    "{}\n{:.2} {} {}",
+                    cell_short(cell),
+                    graph.get_cell_elevation(cell_id),
+                    if cell.water { "w" } else { "" },
+                    if cell.ocean { "o" } else { "" }
+                ))
+                .xy(pt2(points_center.0, points_center.1))
+                .font_size(7)
+                .color(BLACK)
+                .z(5.0);
             }
         }
         for edge in graph.edges.values() {
             //     let is_coast = edge.data.coast;
-            //     let is_river = edge.data.river > 0.0;
+            let is_river = edge.river > 0.0;
 
-            // if is_coast || is_river {
-            let mut p1 = graph.corners.get(&edge.corners.0).unwrap();
-            let mut p2 = graph.corners.get(&edge.corners.1).unwrap();
-            if p2.elevation < p1.elevation {
-                let t = p1;
-                p1 = p2;
-                p2 = t;
+            if is_river {
+                let mut p1 = graph.corners.get(&edge.corners.0).unwrap();
+                let mut p2 = graph.corners.get(&edge.corners.1).unwrap();
+                if p2.elevation < p1.elevation {
+                    let t = p1;
+                    p1 = p2;
+                    p2 = t;
+                }
+
+                let pt_1 = pt2(
+                    p1.pos.0 - (X_SCALE as f32 / 2.0),
+                    p1.pos.1 - (Y_SCALE as f32 / 2.0),
+                );
+                let pt_2 = pt2(
+                    p2.pos.0 - (X_SCALE as f32 / 2.0),
+                    p2.pos.1 - (Y_SCALE as f32 / 2.0),
+                );
+
+                // if is_coast {
+                // draw.line()
+                //     .start(pt_1)
+                //     .end(pt_2)
+                //     .weight(3.0)
+                //     .color(BLACK)
+                //     .caps_round()
+                //     .z(2.0);
+                // }
+                if is_river {
+                    draw.line()
+                        .start(pt_1)
+                        .end(pt_2)
+                        .weight((edge.river as f32).sqrt() * 0.3)
+                        .color(LinSrgb::from(FRESH_WATER))
+                        .caps_round()
+                        .z(2.0);
+                }
             }
-
-            let pt_1 = pt2(
-                p1.pos.0 - (X_SCALE as f32 / 2.0),
-                p1.pos.1 - (Y_SCALE as f32 / 2.0),
-            );
-            let pt_2 = pt2(
-                p2.pos.0 - (X_SCALE as f32 / 2.0),
-                p2.pos.1 - (Y_SCALE as f32 / 2.0),
-            );
-
-            // if is_coast {
-            draw.line()
-                .start(pt_1)
-                .end(pt_2)
-                .weight(3.0)
-                .color(BLACK)
-                .caps_round()
-                .z(2.0);
-            // }
-            // if is_river {
-            //     draw.line()
-            //         .start(pt_1)
-            //         .end(pt_2)
-            //         .weight((edge.data.river as f32).sqrt() * 0.3)
-            //         .color(LinSrgb::from(FRESH_WATER))
-            //         .caps_round()
-            //         .z(2.0);
-            // }
-            // }
         }
         draw.to_frame(app, &frame).unwrap();
     }

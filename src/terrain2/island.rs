@@ -54,8 +54,8 @@ pub mod island2 {
             let cell = graph.cells.get_mut(id).unwrap();
             if edge_cell_ids.contains(&id) {
                 cell.water = true;
-                cell.ocean = true;
-                cell.biome = Biome::Lake;
+                cell.ocean = false;
+                cell.biome = Biome::Ocean;
                 drop(cell);
             } else {
                 let (x_b, y_b) = graph_clone.get_cell_center(id);
@@ -87,12 +87,14 @@ pub mod island2 {
     }
 
     pub fn assign_ocean_cells(graph: &mut Graph) -> &mut Graph {
-        let graph_clone = graph.clone();
+        let mut graph_clone = graph.clone();
         let edge_cell_ids = find_border_cell_ids(&graph_clone);
         let mut queue: VecDeque<&Uuid> = VecDeque::from_iter(edge_cell_ids.iter().map(|i| *i));
         let mut processed: HashSet<&Uuid> = HashSet::new();
-        while let Some(id) = queue.pop_front() {
+        for id in &queue {
             processed.insert(id);
+        }
+        while let Some(id) = queue.pop_front() {
             for n_cell_id in graph_clone.get_cell_adjacent_cells(&id) {
                 let n_cell = graph_clone.cells.get(n_cell_id).unwrap();
                 if n_cell.water && !processed.contains(&n_cell_id) {

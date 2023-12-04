@@ -19,7 +19,8 @@ use terrain2::terrain2::run_terrain_gen;
 pub const X_SCALE: f64 = 1600.0;
 pub const Y_SCALE: f64 = 800.0;
 
-const I: usize = 2000;
+// const I: usize = 2000;
+const I: usize = 4000;
 
 fn main() {
     nannou::app(model).update(update).run();
@@ -61,7 +62,7 @@ fn update(_app: &App, model: &mut Model, _update: Update) {
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
-    render(app, &frame, &model.graph, true);
+    render(app, &frame, &model.graph, false);
     model.egui.draw_to_frame(&frame).unwrap();
 }
 

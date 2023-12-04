@@ -80,6 +80,13 @@ pub mod graph2 {
             }
             return output;
         }
+        pub fn get_cell_elevation(&self, cell_id: &Uuid) -> f32 {
+            let cell = self.cells.get(cell_id).unwrap();
+            let edge_count = cell.edges.len();
+            return cell.edges.iter().fold(0.0, |acc, edge_id| {
+                acc + (self.get_edge_elevation(edge_id) / edge_count as f32)
+            });
+        }
         pub fn get_cell_corners_ids(&self, id: &Uuid) -> HashSet<&Uuid> {
             let cell = &self.cells.get(id).unwrap();
             let mut output: HashSet<&Uuid> = HashSet::new();
@@ -177,7 +184,57 @@ pub mod graph2 {
             let edge = self.edges.get(edge_id).unwrap();
             return edge.corners.0.eq(corner_id) || edge.corners.1.eq(corner_id);
         }
+        pub fn get_edge_elevation(&self, edge_id: &Uuid) -> f32 {
+            let edge = self.edges.get(edge_id).unwrap();
+            let c1 = self.corners.get(&edge.corners.0).unwrap();
+            let c2 = self.corners.get(&edge.corners.1).unwrap();
+            return (c1.elevation + c2.elevation) / 2.0;
+        }
+        pub fn get_edge_downwards_corner(&self, edge_id: &Uuid) -> (&Uuid, &Corner) {
+            let edge = self.edges.get(edge_id).unwrap();
+            let c1 = self.corners.get(&edge.corners.0).unwrap();
+            let c2 = self.corners.get(&edge.corners.1).unwrap();
+            if c1.elevation < c2.elevation {
+                return (&edge.corners.0, c1);
+            } else {
+                return (&edge.corners.1, c2);
+            }
+        }
         // corners
+        pub fn get_corner_cells(&self, corner_id: &Uuid) -> Vec<(Uuid, &Cell)> {
+            let corner = self.corners.get(corner_id).unwrap();
+            let edge_cells: Vec<Vec<Uuid>> = corner
+                .edges
+                .iter()
+                .map(|e_id| self.edges.get(&e_id).unwrap().cells.clone())
+                .collect();
+            return edge_cells
+                .concat()
+                .iter()
+                .map(|c_id| (c_id.clone(), self.cells.get(c_id).unwrap()))
+                .collect();
+        }
+        pub fn get_corner_adjacent_corners(&self, corner_id: &Uuid) -> Vec<(Uuid, &Corner)> {
+            let corner = self.corners.get(corner_id).unwrap();
+            let edge_cells: Vec<(Uuid, Uuid)> = corner
+                .edges
+                .iter()
+                .map(|e_id| self.edges.get(&e_id).unwrap().corners)
+                .collect();
+            let mut corner_id_set: HashSet<Uuid> = HashSet::new();
+            for (c1, c2) in edge_cells {
+                if !c1.eq(corner_id) {
+                    corner_id_set.insert(c1);
+                }
+                if !c2.eq(corner_id) {
+                    corner_id_set.insert(c2);
+                }
+            }
+            return corner_id_set
+                .iter()
+                .map(|c_id| (c_id.clone(), self.corners.get(c_id).unwrap()))
+                .collect();
+        }
     }
 
     fn create_pos_key(x: f32, y: f32) -> String {
@@ -354,84 +411,6 @@ pub mod graph2 {
         #[test]
         fn gen_base_graph_test() {
             generate_base_graph(500, 100.0, 200.0);
-        }
-        #[test]
-        fn test_cell_corner_ordering() {
-            let cell_id = Uuid::new_v4();
-            let v_1_id = Uuid::new_v4();
-            let v_2_id = Uuid::new_v4();
-            let v_3_id = Uuid::new_v4();
-            let v_4_id = Uuid::new_v4();
-            let e_1_id = Uuid::new_v4();
-            let e_2_id = Uuid::new_v4();
-            let e_3_id = Uuid::new_v4();
-            let e_4_id = Uuid::new_v4();
-            let corner_1 = Corner {
-                pos: (0.0, 0.0),
-                edges: vec![e_1_id, e_4_id],
-                elevation: 0.0,
-            };
-            let corner_2 = Corner {
-                pos: (0.0, 1.0),
-                edges: vec![e_1_id, e_2_id],
-                elevation: 0.0,
-            };
-            let corner_3 = Corner {
-                pos: (1.0, 1.0),
-                edges: vec![e_2_id, e_3_id],
-                elevation: 0.0,
-            };
-            let corner_4 = Corner {
-                pos: (1.0, 0.0),
-                edges: vec![e_3_id, e_4_id],
-                elevation: 0.0,
-            };
-            let edge_1 = Edge {
-                corners: (v_1_id, v_2_id),
-                cells: vec![cell_id],
-                river: 0.0,
-            };
-            let edge_2 = Edge {
-                corners: (v_2_id, v_3_id),
-                cells: vec![cell_id],
-                river: 0.0,
-            };
-            let edge_3 = Edge {
-                corners: (v_3_id, v_4_id),
-                cells: vec![cell_id],
-                river: 0.0,
-            };
-            let edge_4 = Edge {
-                corners: (v_4_id, v_1_id),
-                cells: vec![cell_id],
-                river: 0.0,
-            };
-            let cell = Cell {
-                water: false,
-                ocean: false,
-                moisture: 0.0,
-                biome: Biome::Bare,
-                edges: vec![e_3_id, e_1_id, e_2_id, e_4_id],
-                coast: false,
-            };
-            let mut cells: HashMap<Uuid, Cell> = HashMap::new();
-            cells.insert(cell_id, cell);
-            let mut edges: HashMap<Uuid, Edge> = HashMap::new();
-            edges.insert(e_1_id, edge_1);
-            edges.insert(e_2_id, edge_2);
-            edges.insert(e_3_id, edge_3);
-            edges.insert(e_4_id, edge_4);
-            let mut corners: HashMap<Uuid, Corner> = HashMap::new();
-            corners.insert(v_1_id, corner_1);
-            corners.insert(v_2_id, corner_2);
-            corners.insert(v_3_id, corner_3);
-            corners.insert(v_4_id, corner_4);
-            let graph = Graph {
-                cells,
-                edges,
-                corners,
-            };
-            println!("{:#?}", graph.get_cell_corners_in_order(&cell_id));
         }
     }
 }
