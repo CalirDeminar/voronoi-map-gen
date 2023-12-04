@@ -1,7 +1,6 @@
 pub mod graph2 {
     use std::collections::{HashMap, HashSet};
     use uuid::Uuid;
-    use voronator::delaunator::Point;
 
     use crate::{helpers::helpers::create_benchmarker, voronoi::voronoi::initialise_voronoi};
 
@@ -62,7 +61,7 @@ pub mod graph2 {
 
     impl Graph {
         // cells
-        fn get_cell_edges(&self, id: &Uuid) -> Vec<&Edge> {
+        pub fn get_cell_edges(&self, id: &Uuid) -> Vec<&Edge> {
             let cell = &self.cells.get(id).unwrap();
             return cell
                 .edges
@@ -128,7 +127,7 @@ pub mod graph2 {
                 return vec![];
             }
             let mut output_corners: Vec<Uuid> = Vec::new();
-            let mut last_edge_id = working_edges.remove(0);
+            let last_edge_id = working_edges.remove(0);
             let starting_edge = &self.edges.get(&last_edge_id).unwrap();
             output_corners.push(starting_edge.corners.0);
             output_corners.push(starting_edge.corners.1);
@@ -155,7 +154,6 @@ pub mod graph2 {
                 }
 
                 working_edges.retain(|e_id| !e_id.eq(&next_edge_id));
-                last_edge_id = next_edge_id;
             }
             return output_corners
                 .iter()
@@ -169,7 +167,7 @@ pub mod graph2 {
             let c_2 = self.corners.get(&edge.corners.1).unwrap();
             return (c_1, c_2);
         }
-        fn edges_share_same_corners(&self, id_1: &Uuid, index: usize, id_2: &Uuid) -> bool {
+        pub fn edges_share_same_corners(&self, id_1: &Uuid, index: usize, id_2: &Uuid) -> bool {
             let e_1 = self.edges.get(id_1).unwrap();
             let e_2 = self.edges.get(id_2).unwrap();
             if index.eq(&0) {
@@ -199,6 +197,15 @@ pub mod graph2 {
             } else {
                 return (&edge.corners.1, c2);
             }
+        }
+        pub fn edge_is_coastal(&self, edge_id: &Uuid) -> bool {
+            let edge = self.edges.get(edge_id).unwrap();
+            let cells: Vec<&Cell> = edge
+                .cells
+                .iter()
+                .map(|cell_id| self.cells.get(cell_id).unwrap())
+                .collect();
+            return cells.iter().any(|cell| !cell.water) && cells.iter().any(|cell| cell.water);
         }
         // corners
         pub fn get_corner_cells(&self, corner_id: &Uuid) -> Vec<(Uuid, &Cell)> {
@@ -356,6 +363,7 @@ pub mod graph2 {
                         river: 0.0,
                     };
                     graph.edges.insert(edge_id, edge);
+                    graph_cell.edges.push(edge_id.clone());
                     edge_cache.insert(
                         format!(
                             "{}{}",

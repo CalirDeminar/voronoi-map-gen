@@ -28,7 +28,7 @@ pub mod island2 {
         return output;
     }
 
-    fn find_border_cell_ids(graph: &Graph) -> HashSet<&Uuid> {
+    pub fn find_border_cell_ids(graph: &Graph) -> HashSet<&Uuid> {
         let mut output: HashSet<&Uuid> = HashSet::new();
         let border_corners = find_border_corner_ids(graph);
         for (cell_id, _cell) in &graph.cells {

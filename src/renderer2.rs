@@ -75,11 +75,11 @@ pub mod renderer {
                 //     .color(BLACK)
                 //     .z(5.0);
                 draw.text(&format!(
-                    "{}\n{:.2} {} {}",
+                    "{}",
                     cell_short(cell),
-                    graph.get_cell_elevation(cell_id),
-                    if cell.water { "w" } else { "" },
-                    if cell.ocean { "o" } else { "" }
+                    // graph.get_cell_elevation(cell_id),
+                    // if cell.water { "w" } else { "" },
+                    // if cell.ocean { "o" } else { "" }
                 ))
                 .xy(pt2(points_center.0, points_center.1))
                 .font_size(7)
@@ -87,11 +87,11 @@ pub mod renderer {
                 .z(5.0);
             }
         }
-        for edge in graph.edges.values() {
-            //     let is_coast = edge.data.coast;
+        for (edge_id, edge) in &graph.edges {
+            let is_coast = graph.edge_is_coastal(edge_id);
             let is_river = edge.river > 0.0;
 
-            if is_river {
+            if is_coast || is_river {
                 let mut p1 = graph.corners.get(&edge.corners.0).unwrap();
                 let mut p2 = graph.corners.get(&edge.corners.1).unwrap();
                 if p2.elevation < p1.elevation {
@@ -108,22 +108,20 @@ pub mod renderer {
                     p2.pos.0 - (X_SCALE as f32 / 2.0),
                     p2.pos.1 - (Y_SCALE as f32 / 2.0),
                 );
-
-                // if is_coast {
-                // draw.line()
-                //     .start(pt_1)
-                //     .end(pt_2)
-                //     .weight(3.0)
-                //     .color(BLACK)
-                //     .caps_round()
-                //     .z(2.0);
-                // }
                 if is_river {
                     draw.line()
                         .start(pt_1)
                         .end(pt_2)
                         .weight((edge.river as f32).sqrt() * 0.3)
                         .color(LinSrgb::from(FRESH_WATER))
+                        .caps_round()
+                        .z(2.0);
+                } else if is_coast {
+                    draw.line()
+                        .start(pt_1)
+                        .end(pt_2)
+                        .weight(3.0)
+                        .color(BLACK)
                         .caps_round()
                         .z(2.0);
                 }
