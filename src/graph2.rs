@@ -37,6 +37,7 @@ pub mod graph2 {
     pub struct Edge {
         // Graph Data
         pub corners: (Uuid, Uuid),
+        pub corner_midpoints: Vec<(f32, f32)>,
         pub cells: Vec<Uuid>,
         // Terrain Data
         pub river: f32,
@@ -178,6 +179,13 @@ pub mod graph2 {
             }
             return false;
         }
+        pub fn edge_shares_pos_at(&self, id: &Uuid, pos: &(f32, f32)) -> bool {
+            let edge = self.edges.get(id).unwrap();
+
+            let c_1 = self.corners.get(&edge.corners.0).unwrap();
+            let c_2 = self.corners.get(&edge.corners.1).unwrap();
+            return c_1.pos.eq(pos) || c_2.pos.eq(pos);
+        }
         fn edges_share_corner(&self, edge_id: &Uuid, corner_id: &Uuid) -> bool {
             let edge = self.edges.get(edge_id).unwrap();
             return edge.corners.0.eq(corner_id) || edge.corners.1.eq(corner_id);
@@ -315,6 +323,7 @@ pub mod graph2 {
                     let edge_id = Uuid::new_v4();
                     let edge = Edge {
                         corners: (corner_id, previous_point.unwrap().clone()),
+                        corner_midpoints: Vec::new(),
                         cells: Vec::new(),
                         river: 0.0,
                     };
@@ -359,6 +368,7 @@ pub mod graph2 {
                 if c_1.is_some() && c_2.is_some() {
                     let edge = Edge {
                         corners: (c_1.unwrap().clone(), c_2.unwrap().clone()),
+                        corner_midpoints: Vec::new(),
                         cells: Vec::new(),
                         river: 0.0,
                     };

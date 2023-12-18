@@ -1,11 +1,14 @@
 pub mod renderer {
     use nannou::prelude::*;
     use nannou::App;
+    use uuid::Uuid;
 
     use crate::graph2::graph2::Biome;
     use crate::graph2::graph2::Cell;
     use crate::graph2::graph2::Corner;
+    use crate::graph2::graph2::Edge;
     use crate::graph2::graph2::Graph;
+    use crate::helpers::helpers::create_benchmarker;
     use crate::X_SCALE;
     use crate::Y_SCALE;
 
@@ -29,37 +32,75 @@ pub mod renderer {
     const TROPICALRAINFOREST: (f32, f32, f32) = (0.2, 0.47, 0.33);
     const TROPICALFOREST: (f32, f32, f32) = (0.33, 0.59, 0.26);
 
-    pub fn render(app: &App, frame: &Frame, graph: &Graph, biome_debug: bool) {
+    fn get_cell_positions_with_midpoints(graph: &Graph, cell_id: &Uuid) -> Vec<(f32, f32)> {
+        let cell = graph.cells.get(cell_id).unwrap();
+        let mut output: Vec<(f32, f32)> = Vec::new();
+
+        let mut working_edges = cell.edges.clone();
+        let last_edge_id = working_edges.remove(0);
+        let starting_edge = graph.edges.get(&last_edge_id).unwrap();
+        for pos in &starting_edge.corner_midpoints {
+            output.push(pos.clone());
+        }
+        while working_edges.len() > 0 {
+            let mut last_position = output.last().unwrap();
+            let mut next_edge_id_option = working_edges
+                .iter()
+                .find(|e_id| graph.edge_shares_pos_at(e_id, last_position));
+            if next_edge_id_option.is_none() {
+                output.reverse();
+                last_position = output.last().unwrap();
+                next_edge_id_option = working_edges
+                    .iter()
+                    .find(|e_id| graph.edge_shares_pos_at(e_id, last_position));
+            }
+            let next_edge_id = next_edge_id_option.unwrap().clone();
+            let edge = graph.edges.get(&next_edge_id).unwrap();
+            if !output.contains(edge.corner_midpoints.last().unwrap()) {
+                for pos in &edge.corner_midpoints {
+                    output.push(pos.clone());
+                }
+            }
+
+            if !output.contains(edge.corner_midpoints.first().unwrap()) {
+                let mut reversed_points = edge.corner_midpoints.clone();
+                reversed_points.reverse();
+                for pos in &reversed_points {
+                    output.push(pos.clone());
+                }
+            }
+            working_edges.retain(|e_id| !e_id.eq(&next_edge_id));
+        }
+        return output;
+    }
+
+    pub fn render(
+        app: &App,
+        frame: &Frame,
+        graph: &Graph,
+        biome_debug: bool,
+        log_render_time: bool,
+    ) {
         let draw = app.draw();
         draw.background().color(WHITE);
-
-        for (k, cell_id) in graph.cells.keys().enumerate() {
+        let render_time = create_benchmarker(String::from("Render"));
+        for (_i, cell_id) in graph.cells.keys().enumerate() {
             let cell = graph.cells.get(cell_id).unwrap();
-            let mut points: Vec<&Corner> = graph.get_cell_corners_in_order(cell_id);
-            // let mut prev: Option<&&Corner> = p.last();
-            let poly_points = points.iter().map(|c| {
+
+            let points = get_cell_positions_with_midpoints(graph, cell_id);
+
+            let poly_points_2 = points.iter().map(|c| {
                 let colour: LinSrgb<f32> = LinSrgb::from(cell_colour(cell));
 
                 return (
-                    (
-                        c.pos.0 - (X_SCALE as f32 / 2.0),
-                        c.pos.1 - (Y_SCALE as f32 / 2.0),
-                    ),
+                    (c.0 - (X_SCALE as f32 / 2.0), c.1 - (Y_SCALE as f32 / 2.0)),
                     colour,
                 );
             });
-            // for point in &points {
-            //     draw.text(&format!("{}", point.elevation))
-            //         .xy(pt2(
-            //             point.pos.0 - (X_SCALE as f32 / 2.0),
-            //             point.pos.1 - (Y_SCALE as f32 / 2.0),
-            //         ))
-            //         .font_size(9)
-            //         .color(BLACK)
-            //         .z(5.0);
-            // }
-            let poly_points_clone = poly_points.clone();
-            draw.polygon().points_colored(poly_points).z(1.0);
+
+            let poly_points_clone = poly_points_2.clone();
+
+            draw.polygon().points_colored(poly_points_2).z(1.0);
 
             if biome_debug {
                 let points_len = poly_points_clone.len();
@@ -100,34 +141,42 @@ pub mod renderer {
                     p2 = t;
                 }
 
-                let pt_1 = pt2(
-                    p1.pos.0 - (X_SCALE as f32 / 2.0),
-                    p1.pos.1 - (Y_SCALE as f32 / 2.0),
-                );
-                let pt_2 = pt2(
-                    p2.pos.0 - (X_SCALE as f32 / 2.0),
-                    p2.pos.1 - (Y_SCALE as f32 / 2.0),
-                );
-                if is_river {
-                    draw.line()
-                        .start(pt_1)
-                        .end(pt_2)
-                        .weight((edge.river as f32).sqrt() * 0.3)
-                        .color(LinSrgb::from(FRESH_WATER))
-                        .caps_round()
-                        .z(2.0);
-                } else if is_coast {
-                    draw.line()
-                        .start(pt_1)
-                        .end(pt_2)
-                        .weight(3.0)
-                        .color(BLACK)
-                        .caps_round()
-                        .z(2.0);
+                let mut midpoints = edge.corner_midpoints.clone();
+                let mut last_point = midpoints.remove(0);
+                for point in midpoints {
+                    let pt_1 = pt2(
+                        point.0 - (X_SCALE as f32 / 2.0),
+                        point.1 - (Y_SCALE as f32 / 2.0),
+                    );
+                    let pt_2 = pt2(
+                        last_point.0 - (X_SCALE as f32 / 2.0),
+                        last_point.1 - (Y_SCALE as f32 / 2.0),
+                    );
+                    if is_river {
+                        draw.line()
+                            .start(pt_1)
+                            .end(pt_2)
+                            .weight((edge.river as f32).sqrt() * 0.3)
+                            .color(LinSrgb::from(FRESH_WATER))
+                            .caps_round()
+                            .z(2.0);
+                    } else if is_coast {
+                        draw.line()
+                            .start(pt_1)
+                            .end(pt_2)
+                            .weight(3.0)
+                            .color(BLACK)
+                            .caps_round()
+                            .z(2.0);
+                    }
+                    last_point = point;
                 }
             }
         }
         draw.to_frame(app, &frame).unwrap();
+        if log_render_time {
+            render_time();
+        }
     }
 
     fn cell_colour(cell: &Cell) -> (f32, f32, f32) {

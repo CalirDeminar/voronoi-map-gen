@@ -1,4 +1,5 @@
 pub mod biome;
+pub mod edge_detail;
 pub mod elevation;
 pub mod island;
 pub mod rivers;
@@ -12,6 +13,7 @@ pub mod terrain2 {
 
     use super::{
         biome::biome::assign_biomes,
+        edge_detail::edge_detail::add_edge_divisions,
         elevation::elevation2::assign_land_elevation,
         island::island2::{assign_coastal_cells, assign_ocean_cells, run_island_gen},
         rivers::rivers2::create_rivers,
@@ -52,6 +54,10 @@ pub mod terrain2 {
         let biome_assign = create_benchmarker(String::from("Assign Biomes"));
         assign_biomes(&mut graph);
         biome_assign();
+
+        let edge_divisions = create_benchmarker(String::from("Edge Divisions"));
+        add_edge_divisions(&mut graph);
+        edge_divisions();
 
         return graph;
     }

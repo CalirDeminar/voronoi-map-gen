@@ -34,7 +34,7 @@ pub mod rivers2 {
         return cell_ids
             .concat()
             .iter()
-            .any(|cell_id| graph.cells.get(cell_id).unwrap().ocean);
+            .any(|cell_id| graph.cells.get(cell_id).unwrap().water);
     }
 
     pub fn create_rivers(graph: &mut Graph) -> &mut Graph {

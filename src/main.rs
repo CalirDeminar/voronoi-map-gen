@@ -26,6 +26,8 @@ fn main() {
 struct Model {
     graph: Graph,
     egui: Egui,
+    has_logged_render: bool,
+    log_render: bool,
 }
 
 fn model(app: &App) -> Model {
@@ -43,23 +45,33 @@ fn model(app: &App) -> Model {
     Model {
         graph: base_graph,
         egui,
+        has_logged_render: false,
+        log_render: true,
     }
 }
 
 fn update(_app: &App, model: &mut Model, _update: Update) {
     let egui = &mut model.egui;
     let ctx = egui.begin_frame();
+    if model.has_logged_render && model.log_render {
+        model.log_render = false;
+    } else if !model.has_logged_render {
+        model.has_logged_render = true;
+    }
+
     egui::Window::new("Settings").show(&ctx, |ui| {
         let regenerate = ui.button("Regenerate").clicked();
         if regenerate {
             let base_graph = full_terrain_gen(I, X_SCALE, Y_SCALE);
             model.graph = base_graph;
+            model.log_render = true;
+            model.has_logged_render = false;
         }
     });
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
-    render(app, &frame, &model.graph, true);
+    render(app, &frame, &model.graph, true, model.log_render);
     model.egui.draw_to_frame(&frame).unwrap();
 }
 
